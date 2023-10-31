@@ -1220,18 +1220,11 @@ function handle_recursive_functions!(symstate::SymbolsState)
 end
 
 """
-    compute_symbolreferences(ex::Any)::SymbolsState
+compute_symbols_state(ex::Any)::SymbolsState
 
-Return the global references, assignment, function calls and function definitions inside an arbitrary expression.
-Inside Pluto, `ex` is always an `Expr`. However, we still accept `Any` to allow people outside Pluto to use this to do syntax analysis.
+Return the global references, assignment, function calls and function definitions inside an arbitrary expression, in a `SymbolsState` object.
 """
-function compute_symbolreferences(ex::Any; configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration())::SymbolsState
-    symstate = explore!(ex, ScopeState(configuration))
-    handle_recursive_functions!(symstate)
-    return symstate
-end
-
-function try_compute_symbolreferences(ex::Any; configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration())::SymbolsState
+function compute_symbols_state(ex::Any; configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration())::SymbolsState
     try
         compute_symbolreferences(ex; configuration)
     catch e
@@ -1243,6 +1236,14 @@ function try_compute_symbolreferences(ex::Any; configuration::AbstractExpression
         SymbolsState(references = Set{Symbol}([:fake_reference_to_prevent_it_from_looking_like_a_text_only_cell]))
     end
 end
+
+function compute_symbolreferences(ex::Any; configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration())::SymbolsState
+    symstate = explore!(ex, ScopeState(configuration))
+    handle_recursive_functions!(symstate)
+    return symstate
+end
+
+@deprecate try_compute_symbolreferences(args...) compute_symbols_state(args...)
 
 Base.@kwdef struct UsingsImports
     usings::Set{Expr} = Set{Expr}()

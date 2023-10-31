@@ -4,7 +4,7 @@ Find all variables referenced and assigned in an expression. This package is use
 
 # API
 
-The main function to use is `ExpressionExplorer.compute_reactive_node(expression)`.
+The main function to use is `compute_reactive_node(expression)`, which returns a `ReactiveNode`. There is also a more low-level API available: `compute_symbols_state` returning a `SymbolsSate`.
 
 ## High-level: `ReactiveNode`
 
@@ -24,13 +24,13 @@ Base.@kwdef struct ReactiveNode
 end
 ```
 
-You can use the function `ExpressionExplorer.compute_reactive_node(expression)` to explore an expression and generate the resulting `ReactiveNode`.
+You can use the function `compute_reactive_node(expression)` to explore an expression and generate the resulting `ReactiveNode`.
 
 ## Low-level: `SymbolsSate`
 
 If you are not interested in just the *dependencies* between expressions, there is a more low-level data structure available. (We include it for completeness, but Pluto does not use this data, except to generate a `ReactiveNode`.)
 
-The function `try_compute_symbolreferences` take an expression as argument, and returns a `SymbolsState`.
+The function `compute_symbols_state` take an expression as argument, and returns a `SymbolsState`.
 
 ```julia
 Base.@kwdef mutable struct SymbolsState
@@ -109,7 +109,7 @@ Set{Symbol} with 1 element:
 
 julia> using ExpressionExplorer
 
-julia> try_compute_symbolreferences(:(a = b + c))
+julia> compute_symbols_state(:(a = b + c))
 SymbolsState(
     references=Set([:b, :c]), 
     assignments=Set([:a]), 
@@ -118,7 +118,7 @@ SymbolsState(
     macrocalls=Set{Vector{Symbol}}()
 )
 
-julia> try_compute_symbolreferences(:(a = b))
+julia> compute_symbols_state(:(a = b))
 SymbolsState(
     references=Set([:b]), 
     assignments=Set([:a]), 
@@ -127,7 +127,7 @@ SymbolsState(
     macrocalls=Set{Vector{Symbol}}()
 )
 
-julia> try_compute_symbolreferences(:(a(b) = b + c))
+julia> compute_symbols_state(:(a(b) = b + c))
 SymbolsState(
     references=Set{Symbol}(), 
     assignments=Set{Symbol}(), 
