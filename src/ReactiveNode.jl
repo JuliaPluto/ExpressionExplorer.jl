@@ -71,4 +71,4 @@ function ReactiveNode(symstate::SymbolsState)
 end
 
 # Mot just a method of ReactiveNode because an expression is not necessarily a `Expr`, e.g. `Meta.parse("\"hello!\"") isa String`.
-compute_reactive_node(expr::Any) = ReactiveNode(try_compute_symbolreferences(expr))
+compute_reactive_node(expr::Any; kwargs...) = ReactiveNode(compute_symbols_state(expr; kwargs...))
