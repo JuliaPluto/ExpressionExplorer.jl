@@ -66,7 +66,9 @@ julia> # the two expressions that we will use in this example:
 julia> e1 = :(weather = magic() + science);
 
 julia> e2 = :(weather() = magic() + science);
+```
 
+```julia
 julia> r1 = ExpressionExplorer.compute_reactive_node(e1)
 ExpressionExplorer.ReactiveNode(Set([:+, :magic, :science]), Set([:weather]), Set{Symbol}(), Set{ExpressionExplorer.FunctionNameSignaturePair}(), Set{Symbol}(), Set{Symbol}())
 
@@ -82,7 +84,9 @@ Set{Symbol} with 3 elements:
 
 julia> r1.funcdefs_without_signatures
 Set{Symbol}()
+```
 
+```julia
 julia> r2 = ExpressionExplorer.compute_reactive_node(e2)
 ExpressionExplorer.ReactiveNode(Set([:+, :magic, :science]), Set{Symbol}(), Set{Symbol}(), Set(ExpressionExplorer.FunctionNameSignaturePair[ExpressionExplorer.FunctionNameSignaturePair([:weather], 0xa2e6e5b3d2eee6b5)]), Set([:weather]), Set{Symbol}())
 
