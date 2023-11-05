@@ -68,34 +68,3 @@ end
 function external_package_names(x::UsingsImports)::Set{Symbol}
     union!(Set{Symbol}(), Iterators.map(external_package_names, x.usings)..., Iterators.map(external_package_names, x.imports)...)
 end
-
-
-
-################
-
-
-function collect_implicit_usings(ex::Expr)
-    if is_implicit_using(ex)
-        Set{Expr}(Iterators.map(transform_dot_notation, ex.args))
-    else
-        return Set{Expr}()
-    end
-end
-
-collect_implicit_usings(usings::Set{Expr}) = mapreduce(collect_implicit_usings, union!, usings; init = Set{Expr}())
-collect_implicit_usings(usings_imports::UsingsImports) = collect_implicit_usings(usings_imports.usings)
-
-
-is_implicit_using(ex::Expr) = Meta.isexpr(ex, :using) && length(ex.args) >= 1 && !Meta.isexpr(ex.args[1], :(:))
-
-function transform_dot_notation(ex::Expr)
-    if Meta.isexpr(ex, :(.))
-        Expr(:block, ex.args[end])
-    else
-        ex
-    end
-end
-
-
-
-##################
