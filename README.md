@@ -11,14 +11,14 @@ julia> ex = :(const words = split(line));
 
 julia> node = ExpressionExplorer.compute_reactive_node(ex);
 
-julia> node.definitions
-Set{Symbol} with 1 element:
-  :words
-
 julia> node.references
 Set{Symbol} with 2 elements:
   :line
   :split
+
+julia> node.definitions
+Set{Symbol} with 1 element:
+  :words
 ```
 
 # API
