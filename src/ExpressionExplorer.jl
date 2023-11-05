@@ -1,6 +1,13 @@
 module ExpressionExplorer
 
-export compute_symbols_state, compute_reactive_node, compute_usings_imports, ReactiveNode, SymbolsState, FunctionName, FunctionNameSignaturePair, join_funcname_parts
+export compute_symbols_state, 
+    compute_reactive_node, 
+    ReactiveNode, 
+    SymbolsState, 
+    FunctionName, 
+    FunctionNameSignaturePair, 
+    join_funcname_parts,
+    compute_usings_imports
 
 include("./explore.jl")
 include("./UsingsImports.jl")

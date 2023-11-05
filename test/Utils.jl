@@ -50,3 +50,9 @@ end
 
 
 
+@testset "is_toplevel_expr" begin
+    
+    @test ExpressionExplorer.is_toplevel_expr(Expr(:toplevel, LineNumberNode(-1), :(a = 1)))
+    @test !ExpressionExplorer.is_toplevel_expr(:(a = 1))
+end
+
