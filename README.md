@@ -168,6 +168,51 @@ SymbolsState(
 
 ```
 
+## Configuration
+
+It is possible to tweak the behaviour of ExpressionExplorer for specific expression types. For example, you can choose to never look inside a `for` expression (not sure why you would want that). In Pluto, we use this to tweak the way `macrocall` expressions are explored, in a way that we did not want to include in this more general package.
+
+You can configure ExpressionExplorer by creating a new subtype:
+
+```julia
+struct IgnoreForLoops <: ExpressionExplorer.AbstractExpressionExplorerConfiguration
+end
+```
+
+Choose an `explore_...` method that you want to overload, and add an overload with `IgnoreForLoops`. You will need to read ExpressionExplorer's source code for this.
+
+```julia
+function ExpressionExplorer.explore_inner_scoped(ex::Expr, scopestate::ExpressionExplorer.ScopeState{IgnoreForLoops})::SymbolsState
+    if ex.head === :for
+        # ignore everything: report that nothing was found here:
+        return SymbolsState()
+    else
+        # the original code:
+        innerscopestate = deepcopy(scopestate)
+        innerscopestate.inglobalscope = false
+
+        return mapfoldl(a -> explore!(a, innerscopestate), ex.args)
+    end
+end
+```
+
+Then, use the `configuration` keyword argument when using ExpressionExplorer:
+
+```julia
+julia> my_expr = quote
+    a = b
+    for x in z
+        w = rrr
+    end
+end; 
+
+julia> ExpressionExplorer.compute_reactive_node(my_expr; configuration=IgnoreForLoops())
+ReactiveNode(Set([:b]), Set([:a]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set{Symbol}())
+
+julia> ExpressionExplorer.compute_reactive_node(my_expr)
+ReactiveNode(Set([:b, :rrr, :z]), Set([:a]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set{Symbol}())
+```
+
 ## Utility functions
 
 The package also includes some utility functions used by Pluto.jl, that might also be useful to other packages.
