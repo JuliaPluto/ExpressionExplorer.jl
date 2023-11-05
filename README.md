@@ -45,39 +45,8 @@ end
 
 You can use the function `compute_reactive_node(expression)` to explore an expression and generate the resulting `ReactiveNode`.
 
-## Low-level: `SymbolsSate`
+### Example for `compute_reactive_node`
 
-If you are not interested in just the *dependencies* between expressions, there is a more low-level data structure available. (We include it for completeness, but Pluto does not use this data, except to generate a `ReactiveNode`.)
-
-The function `compute_symbols_state` take an expression as argument, and returns a `SymbolsState`.
-
-```julia
-Base.@kwdef mutable struct SymbolsState
-    references::Set{Symbol} = Set{Symbol}()
-    assignments::Set{Symbol} = Set{Symbol}()
-    funccalls::Set{FunctionName} = Set{FunctionName}()
-    funcdefs::Dict{FunctionNameSignaturePair,SymbolsState} = Dict{FunctionNameSignaturePair,SymbolsState}()
-    macrocalls::Set{FunctionName} = Set{FunctionName}()
-end
-```
-
-with
-
-```julia
-const FunctionName = Vector{Symbol}
-
-struct FunctionNameSignaturePair
-    name::FunctionName
-    signature_hash::UInt
-end
-```
-
-`FunctionNameSignaturePair` looks like `FunctionNameSignaturePair([:Base, :sqrt], UInt(0xb187232b478))`. It contains a "hash of the function signature, minus variable names", i.e. `Base.sqrt(x::Int)::String` and `Base.sqrt(x::Number)` will have different hashes, but `Base.sqrt(x)` and `Base.sqrt(woww)` won't.
-
-
-# Example
-
-Tadaaa
 
 ```julia
 julia> # the two expressions that we will use in this example:
@@ -125,7 +94,36 @@ Set{Symbol} with 1 element:
 
 
 
-## Example of low-level API
+## Low-level: `SymbolsSate`
+
+If you are not interested in just the *dependencies* between expressions, there is a more low-level data structure available. (We include it for completeness, but Pluto does not use this data, except to generate a `ReactiveNode`.)
+
+The function `compute_symbols_state` take an expression as argument, and returns a `SymbolsState`.
+
+```julia
+Base.@kwdef mutable struct SymbolsState
+    references::Set{Symbol} = Set{Symbol}()
+    assignments::Set{Symbol} = Set{Symbol}()
+    funccalls::Set{FunctionName} = Set{FunctionName}()
+    funcdefs::Dict{FunctionNameSignaturePair,SymbolsState} = Dict{FunctionNameSignaturePair,SymbolsState}()
+    macrocalls::Set{FunctionName} = Set{FunctionName}()
+end
+```
+
+with
+
+```julia
+const FunctionName = Vector{Symbol}
+
+struct FunctionNameSignaturePair
+    name::FunctionName
+    signature_hash::UInt
+end
+```
+
+`FunctionNameSignaturePair` looks like `FunctionNameSignaturePair([:Base, :sqrt], UInt(0xb187232b478))`. It contains a "hash of the function signature, minus variable names", i.e. `Base.sqrt(x::Int)::String` and `Base.sqrt(x::Number)` will have different hashes, but `Base.sqrt(x)` and `Base.sqrt(woww)` won't.
+
+### Example for `compute_symbols_state`
 
 
 ```julia
@@ -169,3 +167,36 @@ SymbolsState(
 )
 
 ```
+
+## Utility functions
+
+The package also includes some utility functions used by Pluto.jl, that might also be useful to other packages.
+
+### `compute_usings_imports`
+
+With `compute_usings_imports` you can extract all `using` or `import` expressions contained in a larger expression.
+
+```julia
+julia> ex = quote
+           if something
+               import A.B: c
+           else
+               using D
+           end
+       end
+quote;
+
+julia> result = compute_usings_imports(ex);
+
+julia> result.usings
+Set{Expr} with 1 element:
+  :(using D)
+
+julia> result.imports
+Set{Expr} with 1 element:
+  :(import A.B: c)
+```
+
+
+
+
