@@ -1,6 +1,25 @@
 # ExpressionExplorer.jl
  
-Find all variables referenced and assigned in an expression. This package is used internally by Pluto to find links between cells.
+Find all variables _referenced_ and _defined_ in an expression. This package is used internally by Pluto to find links between cells.
+
+### Quick example
+
+```julia
+julia> using ExpressionExplorer
+
+julia> ex = :(const words = split(line));
+
+julia> node = ExpressionExplorer.compute_reactive_node(ex);
+
+julia> node.definitions
+Set{Symbol} with 1 element:
+  :words
+
+julia> node.references
+Set{Symbol} with 2 elements:
+  :line
+  :split
+```
 
 # API
 
