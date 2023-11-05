@@ -197,6 +197,29 @@ Set{Expr} with 1 element:
   :(import A.B: c)
 ```
 
+This function is used by Pluto's built-in package manager to learn which packages are used in a notebook.
 
+### `can_be_function_wrapped`
+
+```julia
+can_be_function_wrapped(ex)::Bool
+```
+
+Is this code simple enough that we can wrap it inside a function, and run the function in global scope instead of running the code directly? Look for `Pluto.PlutoRunner.Computer` to learn more.
+
+### `get_rootassignee`
+```julia
+get_rootassignee(ex)::Union{Symbol,Nothing}
+```
+
+If the expression is a (simple) assignemnt at its root, return the assignee as `Symbol`, return `nothing` otherwise.
+
+
+### `is_toplevel_expr`
+```julia
+is_toplevel_expr(ex)::Bool
+```
+
+Return whether the expression is of the form `Expr(:toplevel, LineNumberNode(..), any)`.
 
 
