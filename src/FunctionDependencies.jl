@@ -27,10 +27,12 @@ const dependency_table = Dict{Symbol,Symbol}(
     :∈ => :in,
 )
 
-maybe_add_dependent_funccall!(funccalls::Set{Symbol}, ::Nothing) = funccalls
 function maybe_add_dependent_funccall!(funccalls::Set{Symbol}, call)
     push!(funccalls, call)
-    maybe_add_dependent_funccall!(funccalls, get(dependency_table, call, nothing))
+    if haskey(dependency_table, call)
+        alternate_call = dependency_table[call]
+        maybe_add_dependent_funccall!(funccalls, alternate_call)
+    end
     funccalls
 end
 

@@ -25,14 +25,14 @@ function get_rootassignee(ex::Expr, recurse::Bool = true)::Union{Symbol,Nothing}
     elseif Meta.isexpr(ex, :macrocall, 3)
         rooter_assignee = get_rootassignee(ex.args[3], true)
         if rooter_assignee !== nothing
-            Symbol(string(ex.args[1]) * " " * string(rooter_assignee))
+            Symbol(string(ex.args[1]), " ", string(rooter_assignee))
         else
             nothing
         end
     elseif Meta.isexpr(ex, :const, 1)
         rooter_assignee = get_rootassignee(ex.args[1], false)
         if rooter_assignee !== nothing
-            Symbol("const " * string(rooter_assignee))
+            Symbol("const ", string(rooter_assignee))
         else
             nothing
         end
@@ -79,8 +79,6 @@ function can_be_function_wrapped(x::Expr)
     else
         all(can_be_function_wrapped, x.args)
     end
-
 end
 
 can_be_function_wrapped(x::Any) = true
-

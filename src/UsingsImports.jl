@@ -1,10 +1,7 @@
-
 Base.@kwdef struct UsingsImports
     usings::Set{Expr} = Set{Expr}()
     imports::Set{Expr} = Set{Expr}()
 end
-
-
 
 """
 ```julia
@@ -66,5 +63,6 @@ function external_package_names(ex::Expr)::Set{Symbol}
 end
 
 function external_package_names(x::UsingsImports)::Set{Symbol}
-    union!(Set{Symbol}(), Iterators.map(external_package_names, x.usings)..., Iterators.map(external_package_names, x.imports)...)
+    pkg_names = mapfoldl(external_package_names, union!, x.usings; init=Set{Symbol}())
+    mapfoldl(external_package_names, union!, x.imports; init=pkg_names)
 end
