@@ -1,6 +1,5 @@
 
-import ExpressionExplorer
-import ExpressionExplorer: SymbolsState, compute_symbolreferences, FunctionNameSignaturePair, UsingsImports, compute_usings_imports
+using ExpressionExplorer
 using Test
 
 
@@ -56,7 +55,7 @@ function testee(expr::Any, expected_references, expected_definitions, expected_f
     expected = easy_symstate(expected_references, expected_definitions, expected_funccalls, expected_funcdefs, expected_macrocalls)
 
     original_hash = expr_hash(expr)
-    result = compute_symbolreferences(expr; configuration)
+    result = ExpressionExplorer.compute_symbolreferences(expr; configuration)
     new_hash = expr_hash(expr)
     if original_hash != new_hash
         error("\n== The expression explorer modified the expression. Don't do that! ==\n")
@@ -64,13 +63,14 @@ function testee(expr::Any, expected_references, expected_definitions, expected_f
 
     # Anonymous function are given a random name, which looks like anon67387237861123
     # To make testing easier, we rename all such functions to anon
-    new_name(sym) = startswith(string(sym), "anon") ? :anon : sym
+    new_name(fn::FunctionName) = FunctionName(map(new_name, fn.parts)...)
+    new_name(sym::Symbol) = startswith(string(sym), "anon") ? :anon : sym
 
     result.assignments = Set(new_name.(result.assignments))
     result.funcdefs = let
         newfuncdefs = Dict{FunctionNameSignaturePair,SymbolsState}()
         for (k, v) in result.funcdefs
-            union!(newfuncdefs, Dict(FunctionNameSignaturePair(new_name.(k.name), hash("hello")) => v))
+            union!(newfuncdefs, Dict(FunctionNameSignaturePair(new_name(k.name), hash("hello")) => v))
         end
         newfuncdefs
     end
@@ -108,13 +108,13 @@ end
 
 function easy_symstate(expected_references, expected_definitions, expected_funccalls, expected_funcdefs, expected_macrocalls = [])
     array_to_set(array) = map(array) do k
-        new_k = k isa Symbol ? [k] : k
+        new_k = FunctionName(k)
         return new_k
     end |> Set
     new_expected_funccalls = array_to_set(expected_funccalls)
     
     new_expected_funcdefs = map(expected_funcdefs) do (k, v)
-        new_k = k isa Symbol ? [k] : k
+        new_k = FunctionName(k)
         new_v = v isa SymbolsState ? v : easy_symstate(v...)
         return FunctionNameSignaturePair(new_k, hash("hello")) => new_v
     end |> Dict

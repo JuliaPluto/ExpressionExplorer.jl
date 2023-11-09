@@ -6,7 +6,31 @@ import Base: union, union!, ==, push!
 # TWO STATE OBJECTS
 ###
 
-const FunctionName = Vector{Symbol}
+# See https://gist.github.com/fonsp/fc7ace2bd8a0dfc2f87d694336f6c04a for the performance of using storing `parts` as a `Tuple`.
+
+struct FunctionName{N}
+    parts::NTuple{N,Symbol}
+    joined::Symbol
+end
+
+FunctionName(parts::Vector{Symbol}) = FunctionName(
+    tuple(parts...),
+    Symbol(join(parts, '.')),
+)
+
+FunctionName(parts::Symbol...) = FunctionName(
+    parts,
+    Symbol(join(parts, '.')),
+)
+FunctionName(part::Symbol) = FunctionName(
+    (part,),
+    part,
+)
+FunctionName() = FunctionName(
+    (),
+    Symbol(""),
+)
+
 
 """
 For an expression like `function Base.sqrt(x::Int)::Int x; end`, it has the following fields:
@@ -19,7 +43,7 @@ struct FunctionNameSignaturePair
 end
 
 Base.:(==)(a::FunctionNameSignaturePair, b::FunctionNameSignaturePair) = a.name == b.name && a.signature_hash == b.signature_hash
-Base.hash(a::FunctionNameSignaturePair, h::UInt) = hash(a.name, hash(a.signature_hash, h))
+Base.hash(a::FunctionNameSignaturePair, h::UInt) = hash(:FunctionNameSignaturePair, hash(a.name, hash(a.signature_hash, h)))
 
 "SymbolsState trickles _down_ the ASTree: it carries referenced and defined variables from endpoints down to the root."
 Base.@kwdef mutable struct SymbolsState
@@ -112,13 +136,13 @@ function will_assign_global(assignee::Symbol, scopestate::ScopeState)::Bool
     (scopestate.inglobalscope || assignee ∈ scopestate.exposedglobals) && (assignee ∉ scopestate.hiddenglobals || assignee ∈ scopestate.definedfuncs)
 end
 
-function will_assign_global(assignee::Vector{Symbol}, scopestate::ScopeState)::Bool
-    if length(assignee) == 0
+function will_assign_global(assignee::FunctionName, scopestate::ScopeState)::Bool
+    if length(assignee.parts) == 0
         false
-    elseif length(assignee) > 1
+    elseif length(assignee.parts) > 1
         scopestate.inglobalscope
     else
-        will_assign_global(assignee[1], scopestate)
+        will_assign_global(assignee.parts[1], scopestate)
     end
 end
 
@@ -138,7 +162,7 @@ function get_global_assignees(assignee_exprs, scopestate::ScopeState)::Set{Symbo
     return global_assignees
 end
 
-function get_assignees(ex::Expr)::FunctionName
+function get_assignees(ex::Expr)::Vector{Symbol}
     if ex.head == :tuple
         if length(ex.args) == 1 && Meta.isexpr(only(ex.args), :parameters)
             # e.g. (x, y) in the ex (; x, y) = (x = 5, y = 6, z = 7)
@@ -181,7 +205,7 @@ function uncurly!(ex::Expr, scopestate::ScopeState)::Tuple{Symbol,SymbolsState}
     symstate = SymbolsState()
     for curly_arg in ex.args[2:end]
         arg_name, arg_symstate = explore_funcdef!(curly_arg, scopestate)
-        push!(scopestate.hiddenglobals, join_funcname_parts(arg_name))
+        push!(scopestate.hiddenglobals, arg_name.joined)
         union!(symstate, arg_symstate)
     end
     Symbol(ex.args[1]), symstate
@@ -191,19 +215,26 @@ uncurly!(ex::Expr)::Tuple{Symbol,SymbolsState} = ex.args[1], SymbolsState()
 
 uncurly!(s::Symbol, scopestate = nothing)::Tuple{Symbol,SymbolsState} = s, SymbolsState()
 
-"Turn `:(Base.Submodule.f)` into `[:Base, :Submodule, :f]` and `:f` into `[:f]`."
+
+
+function join_funcnames(a::FunctionName, bs::FunctionName...)
+	b = join_funcnames(bs...)
+	FunctionName(
+		(a.parts..., b.parts...),
+		isempty(a.parts) ? b.joined : isempty(b.parts) ? a.joined : Symbol(a.joined, ".", b.joined)
+	)
+end
+join_funcnames(x::FunctionName) = x
+
+
+"Turn `:(Base.Submodule.f)` into `FunctionName(:Base, :Submodule, :f)` and `:f` into `FunctionName(:f)`."
 function split_funcname(funcname_ex::Expr)::FunctionName
     if funcname_ex.head == :(.)
-        out = FunctionName()
-        args = funcname_ex.args
-        for arg in args
-            push!(out, split_funcname(arg)...)
-        end
-        return out
+		mapfoldl(split_funcname, join_funcnames, funcname_ex.args; init=FunctionName())
     else
         # a call to a function that's not a global, like calling an array element: `funcs[12]()`
         # TODO: explore symstate!
-        return Symbol[]
+        FunctionName()
     end
 end
 
@@ -215,16 +246,13 @@ function split_funcname(funcname_ex::GlobalRef)::FunctionName
 end
 
 function split_funcname(funcname_ex::Symbol)::FunctionName
-    Symbol[funcname_ex|>without_dotprefix|>without_dotsuffix]
+    FunctionName(funcname_ex |> without_dotprefix |> without_dotsuffix)
 end
 
 # this includes GlobalRef - it's fine that we don't recognise it, because you can't assign to a globalref?
 function split_funcname(::Any)::FunctionName
-    Symbol[]
+    FunctionName()
 end
-
-"Allows comparing tuples to vectors since having constant vectors can be slower"
-all_iters_eq(a, b) = length(a) == length(b) && all((aa == bb for (aa, bb) in zip(a, b)))
 
 function is_just_dots(ex::Expr)
     ex.head == :(.) && all(is_just_dots, ex.args)
@@ -264,20 +292,12 @@ julia> generate_funcnames([:Base, :Foo, :bar])
 
 """
 function generate_funcnames(funccall::FunctionName)
-    calls = Vector{FunctionName}(undef, length(funccall) - 1)
-    for i = length(funccall):-1:2
-        calls[i-1] = funccall[i:end]
+    calls = Vector{FunctionName}(undef, length(funccall.parts) - 1)
+    for i = length(funccall.parts):-1:2
+        calls[i-1] = funccall.parts[i:end]
     end
     calls
 end
-
-"""
-Turn `Symbol[:Module, :func]` into Symbol("Module.func").
-
-This is **not** the same as the expression `:(Module.func)`, but is used to identify the function name using a single `Symbol` (like normal variables).
-This means that it is only the inverse of `ExpressionExplorer.split_funcname` iff `length(parts) ≤ 1`.
-"""
-join_funcname_parts(parts::FunctionName) = Symbol(join(parts, '.'))
 
 # this is stupid -- désolé
 function is_joined_funcname(joined::Symbol)
@@ -335,7 +355,8 @@ function explore_assignment!(ex::Expr, scopestate::ScopeState)::SymbolsState
     val = ex.args[2]
     # Handle generic types assignments A{B} = C{B, Int}
     if ex.args[1] isa Expr && ex.args[1].head::Symbol == :curly
-        assignees, symstate = explore_funcdef!(ex.args[1], scopestate)::Tuple{Vector{Symbol}, SymbolsState}
+        assignees_fn, symstate = explore_funcdef!(ex.args[1], scopestate)::Tuple{FunctionName, SymbolsState}
+        assignees = Symbol[assignees_fn.parts[end]]
         innersymstate = union!(symstate, explore!(val, scopestate))
     else
         assignees = get_assignees(ex.args[1])
@@ -351,7 +372,7 @@ function explore_assignment!(ex::Expr, scopestate::ScopeState)::SymbolsState
     union!(scopestate.hiddenglobals, global_assignees)
     union!(symstate.assignments, global_assignees)
     union!(symstate.references, setdiff(assigneesymstate.references, global_assignees))
-    union!(symstate.funccalls, filter!(call -> length(call) != 1 || only(call) ∉ global_assignees, assigneesymstate.funccalls))
+    union!(symstate.funccalls, filter!(call -> length(call.parts) != 1 || call.joined ∉ global_assignees, assigneesymstate.funccalls))
     filter!(!all_underscores, symstate.references)  # Never record _ as a reference
 
     return symstate
@@ -433,7 +454,7 @@ function explore_macrocall!(ex::Expr, scopestate::ScopeState)
     end
 
     # Some macros can be expanded on the server process
-    if join_funcname_parts(macro_name) ∈ can_macroexpand
+    if macro_name.joined ∈ can_macroexpand
         new_ex = maybe_macroexpand(ex)
         union!(symstate, explore!(new_ex, scopestate))
     end
@@ -441,55 +462,19 @@ function explore_macrocall!(ex::Expr, scopestate::ScopeState)
     return symstate
 end
 
-
-# TODO: PLuto should overload the original:
-
-# function explore_macrocall!(ex::Expr, scopestate::ScopeState)
-#     # Early stopping, this expression will have to be re-explored once
-#     # the macro is expanded in the notebook process.
-#     macro_name = split_funcname(ex.args[1])
-#     symstate = SymbolsState(macrocalls = Set{FunctionName}([macro_name]))
-
-#     # Because it sure wouldn't break anything,
-#     # I'm also going to blatantly assume that any macros referenced in here...
-#     # will end up in the code after the macroexpansion 🤷‍♀️
-#     # "You should make a new function for that" they said, knowing I would take the lazy route.
-#     for arg in ex.args[begin+1:end]
-#         macro_symstate = explore!(arg, ScopeState(scopestate.configuration))
-
-#         # Also, when this macro has something special inside like `Pkg.activate()`,
-#         # we're going to treat it as normal code (so these heuristics trigger later)
-#         # (Might want to also not let this to @eval macro, as an extra escape hatch if you
-#         #    really don't want pluto to see your Pkg.activate() call)
-#         if arg isa Expr && MacroHasSpecialHeuristicInside.macro_has_special_heuristic_inside(symstate = macro_symstate, expr = arg)
-#             union!(symstate, macro_symstate)
-#         else
-#             union!(symstate, SymbolsState(macrocalls = macro_symstate.macrocalls))
-#         end
-#     end
-
-#     # Some macros can be expanded on the server process
-#     if join_funcname_parts(macro_name) ∈ can_macroexpand
-#         new_ex = maybe_macroexpand(ex)
-#         union!(symstate, explore!(new_ex, scopestate))
-#     end
-
-#     return symstate
-# end
-
 function funcname_symstate!(funcname::FunctionName, scopestate::ScopeState)::SymbolsState
-    if length(funcname) == 0
-        explore!(ex.args[1], scopestate)
-    elseif length(funcname) == 1
-        if funcname[1] ∈ scopestate.hiddenglobals
+    if isempty(funcname.parts)
+        SymbolsState()
+    elseif length(funcname.parts) == 1
+        if funcname.parts[1] ∈ scopestate.hiddenglobals
             SymbolsState()
         else
             SymbolsState(funccalls = Set{FunctionName}([funcname]))
         end
-    elseif funcname[1] ∈ scopestate.hiddenglobals
+    elseif funcname.parts[1] ∈ scopestate.hiddenglobals
         SymbolsState()
     else
-        SymbolsState(references = Set{Symbol}([funcname[1]]), funccalls = Set{FunctionName}([funcname]))
+        SymbolsState(references = Set{Symbol}([funcname.parts[1]]), funccalls = Set{FunctionName}([funcname]))
     end
 end
 
@@ -505,13 +490,13 @@ function explore_call!(ex::Expr, scopestate::ScopeState)::SymbolsState
 
         # Make `@macroexpand` and `Base.macroexpand` reactive by referencing the first macro in the second
         # argument to the call.
-        if (all_iters_eq((:Base, :macroexpand), funcname) || all_iters_eq((:macroexpand,), funcname)) &&
+        if ((:Base, :macroexpand) === funcname.parts || (:macroexpand,) === funcname.parts) &&
            length(ex.args) >= 3 &&
            ex.args[3] isa QuoteNode &&
            Meta.isexpr(ex.args[3].value, :macrocall)
             expanded_macro = split_funcname(ex.args[3].value.args[1])
             union!(symstate, SymbolsState(macrocalls = Set{FunctionName}([expanded_macro])))
-        elseif all_iters_eq((:BenchmarkTools, :generate_benchmark_definition), funcname) &&
+        elseif (:BenchmarkTools, :generate_benchmark_definition) === funcname.parts &&
             length(ex.args) == 10
             block = Expr(:block,
                  map(ex.args[[8,7,9]]) do child
@@ -548,7 +533,7 @@ function explore_struct!(ex::Expr, scopestate::ScopeState)
     # See https://github.com/fonsp/Pluto.jl/issues/732 for more details
     inner_symstate = explore!(equiv_func, globalscopestate)
 
-    structname = first(keys(inner_symstate.funcdefs)).name |> join_funcname_parts
+    structname = first(keys(inner_symstate.funcdefs)).name.joined
     push!(inner_symstate.assignments, structname)
     return inner_symstate
 end
@@ -571,15 +556,15 @@ function explore_function_macro!(ex::Expr, scopestate::ScopeState)
 
     # Macro are called using @funcname, but defined with funcname. We need to change that in our scopestate
     # (The `!= 0` is for when the function named couldn't be parsed)
-    if ex.head == :macro && length(funcname) != 0
-        funcname = Symbol[Symbol('@', funcname[1])]
-        push!(innerscopestate.hiddenglobals, only(funcname))
-    elseif length(funcname) == 1
-        push!(scopestate.definedfuncs, funcname[end])
-        push!(scopestate.hiddenglobals, funcname[end])
-    elseif length(funcname) > 1
-        push!(symstate.references, funcname[end-1]) # reference the module of the extended function
-        push!(scopestate.hiddenglobals, funcname[end-1])
+    if ex.head == :macro && length(funcname.parts) != 0
+        funcname = FunctionName(Symbol('@', funcname.parts[1]))
+        push!(innerscopestate.hiddenglobals, only(funcname.parts))
+    elseif length(funcname.parts) == 1
+        push!(scopestate.definedfuncs, funcname.parts[end])
+        push!(scopestate.hiddenglobals, funcname.parts[end])
+    elseif length(funcname.parts) > 1
+        push!(symstate.references, funcname.parts[end-1]) # reference the module of the extended function
+        push!(scopestate.hiddenglobals, funcname.parts[end-1])
     end
 
     union!(innersymstate, explore!(Expr(:block, ex.args[2:end]...), innerscopestate))
@@ -942,14 +927,14 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         # Treat custom struct constructors as a local scope function
         if ex.head == :(=) && is_function_assignment(ex)
             symstate = explore!(ex, scopestate)
-            return Symbol[], symstate
+            return FunctionName(), symstate
         end
 
         # account for unnamed params, like in f(::Example) = 1
         if ex.head == :(::) && length(ex.args) == 1
             symstate = explore!(ex.args[1], scopestate)
 
-            return Symbol[], symstate
+            return FunctionName(), symstate
         end
 
         # For a() = ... in a struct definition
@@ -977,8 +962,8 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         supertypes_symstate = SymbolsState()
         for a in ex.args[2:end]
             name, inner_symstate = explore_funcdef!(a, scopestate)
-            if length(name) == 1
-                push!(scopestate.hiddenglobals, name[1])
+            if length(name.parts) == 1
+                push!(scopestate.hiddenglobals, name.parts[1])
             end
             union!(supertypes_symstate, inner_symstate)
         end
@@ -993,18 +978,18 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         if length(ex.args) != 1
             union!(symstate, explore!(ex.args[2], scopestate))
         end
-        return Symbol[name], symstate
+        return FunctionName(name), symstate
 
     elseif ex.head == :curly
         name, symstate = uncurly!(ex, scopestate)
-        return Symbol[name], symstate
+        return FunctionName(name), symstate
 
     elseif Meta.isexpr(ex, :parameters)
-        init = (Symbol[], SymbolsState())
+        init = (FunctionName(), SymbolsState())
         return umapfoldl(a -> explore_funcdef!(to_kw(a), scopestate), ex.args; init)
 
     elseif ex.head == :tuple
-        init = (Symbol[], SymbolsState())
+        init = (FunctionName(), SymbolsState())
         return umapfoldl(a -> explore_funcdef!(a, scopestate), ex.args; init)
 
     elseif ex.head == :(.)
@@ -1013,7 +998,7 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
     elseif ex.head == :(...)
         return explore_funcdef!(ex.args[1], scopestate)
     else
-        return Symbol[], explore!(ex, scopestate)
+        return FunctionName(), explore!(ex, scopestate)
     end
 end
 
@@ -1023,11 +1008,11 @@ end
 
 function explore_funcdef!(ex::Symbol, scopestate::ScopeState)::Tuple{FunctionName,SymbolsState}
     push!(scopestate.hiddenglobals, ex)
-    Symbol[ex|>without_dotprefix|>without_dotsuffix], SymbolsState()
+    FunctionName(ex |> without_dotprefix |> without_dotsuffix), SymbolsState()
 end
 
 function explore_funcdef!(::Any, ::ScopeState)::Tuple{FunctionName,SymbolsState}
-    Symbol[], SymbolsState()
+    FunctionName(), SymbolsState()
 end
 
 
@@ -1045,9 +1030,8 @@ If the macro is **known to Pluto**, expand or 'mock expand' it, if not, return t
 function maybe_macroexpand(ex::Expr; recursive::Bool=false)
     result::Expr = if ex.head === :macrocall
         funcname = split_funcname(ex.args[1])
-        funcname_joined = join_funcname_parts(funcname)
 
-        if funcname_joined ∈ can_macroexpand
+        if funcname.joined ∈ can_macroexpand
             macroexpand(MacroExpandInHere, ex; recursive=false)::Expr
         else
             ex
