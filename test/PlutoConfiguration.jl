@@ -47,7 +47,7 @@ function macro_has_special_heuristic_inside(; symstate::SymbolsState, expr::Expr
     blub = union(
         symstate.references,
         symstate.assignments,
-        ExpressionExplorer.join_funcname_parts.(symstate.funccalls),
+        (x.joined for x in symstate.funccalls),
     )
     
     yup = ["Pkg", "include"]
@@ -72,9 +72,8 @@ If the macro is **known to Pluto**, expand or 'mock expand' it, if not, return t
 function maybe_macroexpand_pluto(ex::Expr; recursive::Bool=false, expand_bind::Bool=true)
     result::Expr = if ex.head === :macrocall
         funcname = ExpressionExplorer.split_funcname(ex.args[1])
-        funcname_joined = ExpressionExplorer.join_funcname_parts(funcname)
 
-        if funcname_joined ∈ (expand_bind ? can_macroexpand : can_macroexpand_no_bind)
+        if funcname.joined ∈ (expand_bind ? can_macroexpand : can_macroexpand_no_bind)
             macroexpand(PlutoRunner, ex; recursive=false)::Expr
         else
             ex
@@ -129,7 +128,7 @@ function ExpressionExplorer.explore_macrocall!(ex::Expr, scopestate::ScopeState{
     end
 
     # Some macros can be expanded on the server process
-    if ExpressionExplorer.join_funcname_parts(macro_name) ∈ can_macroexpand
+    if macro_name.joined ∈ can_macroexpand
         new_ex = maybe_macroexpand_pluto(ex)
         union!(symstate, ExpressionExplorer.explore!(new_ex, scopestate))
     end

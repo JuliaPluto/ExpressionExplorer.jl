@@ -33,7 +33,7 @@ end
 - A `SymbolsState` is a nested structure of function definitions inside function definitions inside... This conversion flattens this structure by merging `SymbolsState`s from defined functions.
 - `ReactiveNode` functions as a cache to improve efficienty, by turning the nested structures into multiple `Set{Symbol}`s with fast lookups."
 function ReactiveNode(symstate::SymbolsState)
-	macrocalls = Iterators.map(join_funcname_parts, symstate.macrocalls) |> Set{Symbol}
+	macrocalls = Set{Symbol}(x.joined for x in symstate.macrocalls)
 	result = ReactiveNode(;
 		references=Set{Symbol}(symstate.references), 
 		definitions=Set{Symbol}(symstate.assignments),
@@ -47,7 +47,7 @@ function ReactiveNode(symstate::SymbolsState)
 	# union!(result, (ReactiveNode(body_symstate) for (_, body_symstate) in symstate.funcdefs)...)
 
 	# now we will add the function names to our edges:
-	funccalls = Set{Symbol}(symstate.funccalls .|> join_funcname_parts)
+	funccalls = Set{Symbol}(x.joined for x in symstate.funccalls)
 	FunctionDependencies.maybe_add_dependent_funccalls!(funccalls)
 	union!(result.references, funccalls)
 
@@ -55,10 +55,10 @@ function ReactiveNode(symstate::SymbolsState)
 
 	for (namesig, body_symstate) in symstate.funcdefs
 		push!(result.funcdefs_with_signatures, namesig)
-		push!(result.funcdefs_without_signatures, join_funcname_parts(namesig.name))
+		push!(result.funcdefs_without_signatures, namesig.name.joined)
 
 		generated_names = generate_funcnames(namesig.name)
-		generated_names_syms = Iterators.map(join_funcname_parts, generated_names) |> Set{Symbol}
+		generated_names_syms = Set{Symbol}(x.joined for x in generated_names)
 
 		# add the generated names so that they are added as soft definitions
 		# this means that they will not be used if a cycle is created
