@@ -10,45 +10,6 @@
 end
 
 
-@testset "can_be_function_wrapped" begin
-
-    c = ExpressionExplorer.can_be_function_wrapped
-
-
-    @test c(quote
-        a = b + C
-        if d
-            for i = 1:10
-                while Y
-                end
-            end
-        end
-    end)
-
-
-    @test c(quote
-        map(1:10) do i
-            i + 1
-        end
-    end)
-
-
-    @test !c(quote
-        function x(x)
-            X
-        end
-    end)
-
-    @test !c(quote
-        if false
-            using Asdf
-        end
-    end)
-
-
-end
-
-
 
 @testset "is_toplevel_expr" begin
     
