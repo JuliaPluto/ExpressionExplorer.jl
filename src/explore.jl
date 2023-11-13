@@ -1,5 +1,4 @@
 
-import Markdown
 import Base: union, union!, ==
 
 ###
