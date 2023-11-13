@@ -1,6 +1,6 @@
 
 import Markdown
-import Base: union, union!, ==, push!
+import Base: union, union!, ==
 
 ###
 # TWO STATE OBJECTS
@@ -94,16 +94,16 @@ function union(a::SymbolsState, b::SymbolsState)
 end
 
 function union!(a::SymbolsState, bs::SymbolsState...)
-    union!(a.references, (b.references for b in bs)...)
-    union!(a.assignments, (b.assignments for b in bs)...)
-    union!(a.funccalls, (b.funccalls for b in bs)...)
-    union!(a.funcdefs, (b.funcdefs for b in bs)...)
-    union!(a.macrocalls, (b.macrocalls for b in bs)...)
+    mapreduce(b -> b.references, union!, bs; init=a.references)
+    mapreduce(b -> b.assignments, union!, bs; init=a.assignments)
+    mapreduce(b -> b.funccalls, union!, bs; init=a.funccalls)
+    mapreduce(b -> b.funcdefs, union!, bs; init=a.funcdefs)
+    mapreduce(b -> b.macrocalls, union!, bs; init=a.macrocalls)
     return a
 end
 
 function union!(a::Tuple{FunctionName,SymbolsState}, bs::Tuple{FunctionName,SymbolsState}...)
-    a[1], union!(a[2], (b[2] for b in bs)...)
+    a[1], mapreduce(last, union!, bs; init=a[2])
 end
 
 function union(a::ScopeState, b::ScopeState)
@@ -111,10 +111,10 @@ function union(a::ScopeState, b::ScopeState)
 end
 
 function union!(a::ScopeState, bs::ScopeState...)
-    a.inglobalscope &= all((b.inglobalscope for b in bs)...)
-    union!(a.exposedglobals, (b.exposedglobals for b in bs)...)
-    union!(a.hiddenglobals, (b.hiddenglobals for b in bs)...)
-    union!(a.definedfuncs, (b.definedfuncs for b in bs)...)
+    a.inglobalscope &= mapreduce(b -> b.inglobalscope, &, bs; init=true)
+    mapreduce(b -> b.exposedglobals, union!, bs; init=a.exposedglobals)
+    mapreduce(b -> b.hiddenglobals, union!, bs; init=a.hiddenglobals)
+    mapreduce(b -> b.definedfuncs, union!, bs; init=a.definedfuncs)
     return a
 end
 
@@ -122,15 +122,13 @@ function ==(a::SymbolsState, b::SymbolsState)
     a.references == b.references && a.assignments == b.assignments && a.funccalls == b.funccalls && a.funcdefs == b.funcdefs && a.macrocalls == b.macrocalls
 end
 
-Base.push!(x::Set) = x
-
 ###
 # HELPER FUNCTIONS
 ###
 
 # from the source code: https://github.com/JuliaLang/julia/blob/master/src/julia-parser.scm#L9
 const modifiers = [:(+=), :(-=), :(*=), :(/=), :(//=), :(^=), :(÷=), :(%=), :(<<=), :(>>=), :(>>>=), :(&=), :(⊻=), :(≔), :(⩴), :(≕)]
-const modifiers_dotprefixed = [Symbol('.' * String(m)) for m in modifiers]
+const modifiers_dotprefixed = [Symbol('.', m) for m in modifiers]
 
 function will_assign_global(assignee::Symbol, scopestate::ScopeState)::Bool
     (scopestate.inglobalscope || assignee ∈ scopestate.exposedglobals) && (assignee ∉ scopestate.hiddenglobals || assignee ∈ scopestate.definedfuncs)
@@ -176,9 +174,9 @@ function get_assignees(ex::Expr)::Vector{Symbol}
     elseif ex.head == :(::)
         # TODO: type is referenced
         get_assignees(ex.args[1])
-    elseif ex.head == :ref || ex.head == :(.)
+    elseif ex.head === :ref || ex.head === :(.)
         Symbol[]
-    elseif ex.head == :...
+    elseif ex.head === :...
         # Handles splat assignments. e.g. _, y... = 1:5
         args = ex.args
         mapfoldl(get_assignees, union!, args; init=Symbol[])
@@ -201,7 +199,7 @@ all_underscores(s::Symbol) = all(isequal('_'), string(s))
 # TODO: this should return a FunctionName, and use `split_funcname`.
 "Turn :(A{T}) into :A."
 function uncurly!(ex::Expr, scopestate::ScopeState)::Tuple{Symbol,SymbolsState}
-    @assert ex.head == :curly
+    @assert ex.head === :curly
     symstate = SymbolsState()
     for curly_arg in ex.args[2:end]
         arg_name, arg_symstate = explore_funcdef!(curly_arg, scopestate)
@@ -229,7 +227,7 @@ join_funcnames(x::FunctionName) = x
 
 "Turn `:(Base.Submodule.f)` into `FunctionName(:Base, :Submodule, :f)` and `:f` into `FunctionName(:f)`."
 function split_funcname(funcname_ex::Expr)::FunctionName
-    if funcname_ex.head == :(.)
+    if funcname_ex.head === :(.)
 		mapfoldl(split_funcname, join_funcnames, funcname_ex.args; init=FunctionName())
     else
         # a call to a function that's not a global, like calling an array element: `funcs[12]()`
@@ -255,7 +253,7 @@ function split_funcname(::Any)::FunctionName
 end
 
 function is_just_dots(ex::Expr)
-    ex.head == :(.) && all(is_just_dots, ex.args)
+    ex.head === :(.) && all(is_just_dots, ex.args)
 end
 is_just_dots(::Union{QuoteNode,Symbol,GlobalRef}) = true
 is_just_dots(::Any) = false
@@ -338,7 +336,7 @@ Returns whether or not an assignment Expr(:(=),...) is assigning to a new functi
   * f(x)::V = ...
   * f(::T) where {T} = ...
 """
-is_function_assignment(ex::Expr)::Bool = ex.args[1] isa Expr && (ex.args[1].head == :call || ex.args[1].head == :where || (ex.args[1].head == :(::) && ex.args[1].args[1] isa Expr && ex.args[1].args[1].head == :call))
+is_function_assignment(ex::Expr)::Bool = ex.args[1] isa Expr && (ex.args[1].head === :call || ex.args[1].head === :where || (ex.args[1].head === :(::) && ex.args[1].args[1] isa Expr && ex.args[1].args[1].head === :call))
 
 anonymous_name() = Symbol("anon", rand(UInt64))
 
@@ -556,7 +554,7 @@ function explore_function_macro!(ex::Expr, scopestate::ScopeState)
 
     # Macro are called using @funcname, but defined with funcname. We need to change that in our scopestate
     # (The `!= 0` is for when the function named couldn't be parsed)
-    if ex.head == :macro && length(funcname.parts) != 0
+    if ex.head === :macro && length(funcname.parts) != 0
         funcname = FunctionName(Symbol('@', funcname.parts[1]))
         push!(innerscopestate.hiddenglobals, only(funcname.parts))
     elseif length(funcname.parts) == 1
@@ -624,9 +622,9 @@ function explore_anonymous_function!(ex::Expr, scopestate::ScopeState)
 
     # We will rewrite this to a normal function definition, with a temporary name
     funcroot = ex.args[1]
-    args_ex = if funcroot isa Symbol || (funcroot isa Expr && funcroot.head == :(::))
+    args_ex = if funcroot isa Symbol || (funcroot isa Expr && funcroot.head === :(::))
         [funcroot]
-    elseif funcroot.head == :tuple || funcroot.head == :(...) || funcroot.head == :block
+    elseif funcroot.head === :tuple || funcroot.head === :(...) || funcroot.head === :block
         funcroot.args
     else
         @error "Unknown lambda type"
@@ -684,8 +682,8 @@ function explore_local!(ex::Expr, scopestate::ScopeState)::SymbolsState
     if isa(localisee, Symbol)
         push!(scopestate.hiddenglobals, localisee)
         return SymbolsState()
-    elseif isa(localisee, Expr) && (localisee.head == :(=) || localisee.head in modifiers)
-        push!(scopestate.hiddenglobals, get_assignees(localisee.args[1])...)
+    elseif isa(localisee, Expr) && (localisee.head === :(=) || localisee.head in modifiers)
+        union!(scopestate.hiddenglobals, get_assignees(localisee.args[1]))
         return explore!(localisee, scopestate)::SymbolsState
     else
         @warn "unknown local use" ex
@@ -728,7 +726,7 @@ function explore_broadcast!(ex::Expr, scopestate::ScopeState)
 end
 
 function explore_load!(ex::Expr, scopestate::ScopeState)
-    imports = if ex.args[1].head == :(:)
+    imports = if ex.args[1].head === :(:)
         ex.args[1].args[2:end]
     else
         ex.args
@@ -768,55 +766,55 @@ end
 # General recursive method. Is never a leaf.
 # Modifies the `scopestate`.
 function explore!(ex::Expr, scopestate::ScopeState)::SymbolsState
-    if ex.head == :(=)
+    if ex.head === :(=)
         return explore_assignment!(ex, scopestate)
     elseif ex.head in modifiers
         return explore_modifiers!(ex, scopestate)
     elseif ex.head in modifiers_dotprefixed
         return explore_dotprefixed_modifiers!(ex, scopestate)
-    elseif ex.head == :let || ex.head == :for || ex.head == :while
+    elseif ex.head === :let || ex.head === :for || ex.head === :while
         # Creates local scope
         return explore_inner_scoped(ex, scopestate)
-    elseif ex.head == :filter
+    elseif ex.head === :filter
         return explore_filter!(ex, scopestate)
-    elseif ex.head == :generator
+    elseif ex.head === :generator
         return explore_generator!(ex, scopestate)
-    elseif ex.head == :macrocall
+    elseif ex.head === :macrocall
         return explore_macrocall!(ex, scopestate)
-    elseif ex.head == :call
+    elseif ex.head === :call
         return explore_call!(ex, scopestate)
     elseif Meta.isexpr(ex, :parameters)
         return umapfoldl(a -> explore!(to_kw(a), scopestate), ex.args)
-    elseif ex.head == :kw
+    elseif ex.head === :kw
         return explore!(ex.args[2], scopestate)
-    elseif ex.head == :struct
+    elseif ex.head === :struct
         return explore_struct!(ex, scopestate)
-    elseif ex.head == :abstract
+    elseif ex.head === :abstract
         return explore_abstract!(ex, scopestate)
-    elseif ex.head == :function || ex.head == :macro
+    elseif ex.head === :function || ex.head === :macro
         return explore_function_macro!(ex, scopestate)
-    elseif ex.head == :try
+    elseif ex.head === :try
         return explore_try!(ex, scopestate)
-    elseif ex.head == :(->)
+    elseif ex.head === :(->)
         return explore_anonymous_function!(ex, scopestate)
-    elseif ex.head == :global
+    elseif ex.head === :global
         return explore_global!(ex, scopestate)
-    elseif ex.head == :local
+    elseif ex.head === :local
         return explore_local!(ex, scopestate)
-    elseif ex.head == :tuple
+    elseif ex.head === :tuple
         return explore_tuple!(ex, scopestate)
-    elseif Meta.isexpr(ex, :(.), 2) && ex.args[2] isa Expr && ex.args[2].head == :tuple
+    elseif Meta.isexpr(ex, :(.), 2) && ex.args[2] isa Expr && ex.args[2].head === :tuple
         return explore_broadcast!(ex, scopestate)
-    elseif ex.head == :using || ex.head == :import
+    elseif ex.head === :using || ex.head === :import
         return explore_load!(ex, scopestate)
-    elseif ex.head == :quote
+    elseif ex.head === :quote
         return explore_quote!(ex, scopestate)
-    elseif ex.head == :module
+    elseif ex.head === :module
         return explore_module!(ex, scopestate)
     elseif Meta.isexpr(ex, Symbol("'"), 1)
         # a' corresponds to adjoint(a)
         return explore!(Expr(:call, :adjoint, ex.args[1]), scopestate)
-    elseif ex.head == :meta
+    elseif ex.head === :meta
         return SymbolsState()
     else
         return explore_fallback!(ex, scopestate)
@@ -828,9 +826,9 @@ Goes through a module definition, and picks out `import ..x`'s, which are refere
 We need `module_depth + 1` dots before the specifier, so nested modules can still access Pluto.
 """
 function explore_module_definition!(ex::Expr, scopestate; module_depth::Number = 0)
-    if ex.head == :using || ex.head == :import
+    if ex.head === :using || ex.head === :import
         # We don't care about anything after the `:` here
-        import_names = if ex.args[1].head == :(:)
+        import_names = if ex.args[1].head === :(:)
             [ex.args[1].args[1]]
         else
             ex.args
@@ -852,10 +850,10 @@ function explore_module_definition!(ex::Expr, scopestate; module_depth::Number =
         end
 
         return symstate
-    elseif ex.head == :module
+    elseif ex.head === :module
         # Explorer the block inside with one more depth added
         return explore_module_definition!(ex.args[3], scopestate, module_depth = module_depth + 1)
-    elseif ex.head == :quote
+    elseif ex.head === :quote
         # TODO? Explore interpolations, modules can't be in interpolations, but `import`'s can >_>
         return SymbolsState()
     else
@@ -892,11 +890,11 @@ Return the function name and the SymbolsState from argument defaults. Add argume
 Is also used for `struct` and `abstract`.
 """
 function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,SymbolsState}
-    if ex.head == :call
+    if ex.head === :call
         params_to_explore = ex.args[2:end]
         # Using the keyword args syntax f(;y) the :parameters node is the first arg in the AST when it should
         # be explored last. We change from (parameters, ...) to (..., parameters)
-        if length(params_to_explore) >= 2 && params_to_explore[1] isa Expr && params_to_explore[1].head == :parameters
+        if length(params_to_explore) >= 2 && params_to_explore[1] isa Expr && params_to_explore[1].head === :parameters
             params_to_explore = [params_to_explore[2:end]..., params_to_explore[1]]
         end
 
@@ -923,15 +921,15 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         name, symstate = explore_funcdef!(funcroot, scopestate)
         # and explore the function arguments
         return umapfoldl(a -> explore_funcdef!(a, scopestate), params_to_explore; init=(name, symstate))
-    elseif ex.head == :(::) || ex.head == :kw || ex.head == :(=)
+    elseif ex.head === :(::) || ex.head === :kw || ex.head === :(=)
         # Treat custom struct constructors as a local scope function
-        if ex.head == :(=) && is_function_assignment(ex)
+        if ex.head === :(=) && is_function_assignment(ex)
             symstate = explore!(ex, scopestate)
             return FunctionName(), symstate
         end
 
         # account for unnamed params, like in f(::Example) = 1
-        if ex.head == :(::) && length(ex.args) == 1
+        if ex.head === :(::) && length(ex.args) == 1
             symstate = explore!(ex.args[1], scopestate)
 
             return FunctionName(), symstate
@@ -956,7 +954,7 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
 
         return name, symstate
 
-    elseif ex.head == :where
+    elseif ex.head === :where
         # function(...) where {T, S <: R, U <: A.B}
         # supertypes `R` and `A.B` are referenced
         supertypes_symstate = SymbolsState()
@@ -972,7 +970,7 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         union!(symstate, supertypes_symstate)
         return name, symstate
 
-    elseif ex.head == :(<:)
+    elseif ex.head === :(<:)
         # for use in `struct` and `abstract`
         name, symstate = uncurly!(ex.args[1], scopestate)
         if length(ex.args) != 1
@@ -980,7 +978,7 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         end
         return FunctionName(name), symstate
 
-    elseif ex.head == :curly
+    elseif ex.head === :curly
         name, symstate = uncurly!(ex, scopestate)
         return FunctionName(name), symstate
 
@@ -988,14 +986,14 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         init = (FunctionName(), SymbolsState())
         return umapfoldl(a -> explore_funcdef!(to_kw(a), scopestate), ex.args; init)
 
-    elseif ex.head == :tuple
+    elseif ex.head === :tuple
         init = (FunctionName(), SymbolsState())
         return umapfoldl(a -> explore_funcdef!(a, scopestate), ex.args; init)
 
-    elseif ex.head == :(.)
+    elseif ex.head === :(.)
         return split_funcname(ex), SymbolsState()
 
-    elseif ex.head == :(...)
+    elseif ex.head === :(...)
         return explore_funcdef!(ex.args[1], scopestate)
     else
         return FunctionName(), explore!(ex, scopestate)
@@ -1019,8 +1017,6 @@ end
 module MacroExpandInHere
 using Markdown
 end
-
-import .MacroExpandInHere
 
 const can_macroexpand = Set(Symbol.(["@md_str", "Markdown.@md_str", "@gensym", "Base.@gensym", "@enum", "Base.@enum", "@assert", "Base.@assert", "@cmd"]))
 
