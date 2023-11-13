@@ -56,6 +56,9 @@ function testee(expr::Any, expected_references, expected_definitions, expected_f
 
     original_hash = expr_hash(expr)
     result = ExpressionExplorer.compute_symbolreferences(expr; configuration)
+    # should not throw:
+    ReactiveNode(result)
+    
     new_hash = expr_hash(expr)
     if original_hash != new_hash
         error("\n== The expression explorer modified the expression. Don't do that! ==\n")

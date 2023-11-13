@@ -292,7 +292,7 @@ julia> generate_funcnames([:Base, :Foo, :bar])
 function generate_funcnames(funccall::FunctionName)
     calls = Vector{FunctionName}(undef, length(funccall.parts) - 1)
     for i = length(funccall.parts):-1:2
-        calls[i-1] = funccall.parts[i:end]
+        calls[i-1] = FunctionName(funccall.parts[i:end]...)
     end
     calls
 end
