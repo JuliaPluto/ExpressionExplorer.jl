@@ -75,5 +75,5 @@ end
         :(using B),
         :(using .MyModule),
     ]
-    @test result.usings_global == [true, false, false, true]
+    @test result.usings_isglobal == [true, false, false, true]
 end
