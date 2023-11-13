@@ -6,7 +6,6 @@ export compute_symbols_state,
     SymbolsState, 
     FunctionName, 
     FunctionNameSignaturePair, 
-    join_funcname_parts,
     compute_usings_imports
 
 include("./explore.jl")
