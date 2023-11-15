@@ -251,6 +251,9 @@ function split_funcname(::Any)::FunctionName
     FunctionName()
 end
 
+# This allows users to create an Expr with a FunctionName as its name argument. This makes no sense to Julia but it's an easy way to tell ExpressionExplorer about the result that you want.
+split_funcname(fn::FunctionName) = fn
+
 function is_just_dots(ex::Expr)
     ex.head === :(.) && all(is_just_dots, ex.args)
 end
@@ -436,15 +439,9 @@ function explore_generator!(ex::Expr, scopestate::ScopeState)
 end
 
 function explore_macrocall!(ex::Expr, scopestate::ScopeState)
-    # Early stopping, this expression will have to be re-explored once
-    # the macro is expanded in the notebook process.
     macro_name = split_funcname(ex.args[1])
     symstate = SymbolsState(macrocalls = Set{FunctionName}([macro_name]))
 
-    # Because it sure wouldn't break anything,
-    # I'm also going to blatantly assume that any macros referenced in here...
-    # will end up in the code after the macroexpansion 🤷‍♀️
-    # "You should make a new function for that" they said, knowing I would take the lazy route.
     for arg in ex.args[begin+1:end]
         macro_symstate = explore!(arg, ScopeState(scopestate.configuration))
         union!(symstate, SymbolsState(macrocalls = macro_symstate.macrocalls))
