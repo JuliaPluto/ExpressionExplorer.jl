@@ -252,6 +252,9 @@ function split_funcname(::Any)::FunctionName
     FunctionName()
 end
 
+# This allows users to create an Expr with a FunctionName as its name argument. This makes no sense to Julia but it's an easy way to tell ExpressionExplorer about the result that you want.
+split_funcname(fn::FunctionName) = fn
+
 function is_just_dots(ex::Expr)
     ex.head === :(.) && all(is_just_dots, ex.args)
 end
