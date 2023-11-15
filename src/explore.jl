@@ -437,15 +437,9 @@ function explore_generator!(ex::Expr, scopestate::ScopeState)
 end
 
 function explore_macrocall!(ex::Expr, scopestate::ScopeState)
-    # Early stopping, this expression will have to be re-explored once
-    # the macro is expanded in the notebook process.
     macro_name = split_funcname(ex.args[1])
     symstate = SymbolsState(macrocalls = Set{FunctionName}([macro_name]))
 
-    # Because it sure wouldn't break anything,
-    # I'm also going to blatantly assume that any macros referenced in here...
-    # will end up in the code after the macroexpansion 🤷‍♀️
-    # "You should make a new function for that" they said, knowing I would take the lazy route.
     for arg in ex.args[begin+1:end]
         macro_symstate = explore!(arg, ScopeState(scopestate.configuration))
         union!(symstate, SymbolsState(macrocalls = macro_symstate.macrocalls))
