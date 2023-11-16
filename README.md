@@ -168,50 +168,31 @@ SymbolsState(
 
 ```
 
-## Configuration
+## Macro calls
 
-It is possible to tweak the behaviour of ExpressionExplorer for specific expression types. For example, you can choose to never look inside a `for` expression (not sure why you would want that). In Pluto, we use this to tweak the way `macrocall` expressions are explored, in a way that we did not want to include in this more general package.
+ExpressionExplorer ignores the arguments of macro calls. Macros can transform an expression into anything, so the output of ExpressionExplorer for expressions with a macro call is ambiguous. For example, the expression `@time x` contains a *reference* to `x`, while `@gensym x` contains a *definition* of `x`.
 
-You can configure ExpressionExplorer by creating a new subtype:
-
-```julia
-struct IgnoreForLoops <: ExpressionExplorer.AbstractExpressionExplorerConfiguration
-end
-```
-
-Choose an `explore_...` method that you want to overload, and add an overload with `IgnoreForLoops`. You will need to read ExpressionExplorer's source code for this.
+In this example, notice that the assignment to `x` and reference to `y` are detected, but `AAA` and `BBB` are ignored, because they happen inside a macro call argument.
 
 ```julia
-function ExpressionExplorer.explore_inner_scoped(ex::Expr, scopestate::ExpressionExplorer.ScopeState{IgnoreForLoops})::SymbolsState
-    if ex.head === :for
-        # ignore everything: report that nothing was found here:
-        return SymbolsState()
-    else
-        # the original code:
-        innerscopestate = deepcopy(scopestate)
-        innerscopestate.inglobalscope = false
-
-        return mapfoldl(a -> explore!(a, innerscopestate), ex.args)
-    end
-end
+julia> ExpressionExplorer.compute_reactive_node(quote
+           x = y
+           @time AAA = BBB
+       end)
+ReactiveNode(Set([Symbol("@time"), :y]), Set([:x]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set([Symbol("@time")]))
 ```
 
-Then, use the `configuration` keyword argument when using ExpressionExplorer:
+To solve this, you can **macroexpand expressions before giving them to ExpressionExplorer**. For example:
 
 ```julia
-julia> my_expr = quote
-    a = b
-    for x in z
-        w = rrr
-    end
-end; 
-
-julia> ExpressionExplorer.compute_reactive_node(my_expr; configuration=IgnoreForLoops())
-ReactiveNode(Set([:b]), Set([:a]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set{Symbol}())
-
-julia> ExpressionExplorer.compute_reactive_node(my_expr)
-ReactiveNode(Set([:b, :rrr, :z]), Set([:a]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set{Symbol}())
+julia> ExpressionExplorer.compute_reactive_node(macroexpand(Main, quote
+           x = y
+           @time AAA = BBB
+       end))
+ReactiveNode(Set([:first, :GC_Diff, :isnothing, :gc_alloc_count, :-, :gc_num, :cumulative_compile_time_ns, :time_ns, :y, :BBB, :print, :cumulative_compile_timing, :time_print, :last, :!]), Set([:AAA, :x]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set{Symbol}())
 ```
+
+Notice that now, `AAA` and `BBB` are detected, along with functions used inside the `@time` expression.
 
 ## Utility functions
 

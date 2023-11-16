@@ -53,20 +53,14 @@ Base.@kwdef mutable struct SymbolsState
     macrocalls::Set{FunctionName} = Set{FunctionName}()
 end
 
-
-abstract type AbstractExpressionExplorerConfiguration end
-
-struct DefaultConfiguration <: AbstractExpressionExplorerConfiguration end
-
 "ScopeState moves _up_ the ASTree: it carries scope information up towards the endpoints."
-mutable struct ScopeState{T <: AbstractExpressionExplorerConfiguration}
+mutable struct ScopeState
     inglobalscope::Bool
     exposedglobals::Set{Symbol}
     hiddenglobals::Set{Symbol}
     definedfuncs::Set{Symbol}
-    configuration::T
 end
-ScopeState(configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration()) = ScopeState(true, Set{Symbol}(), Set{Symbol}(), Set{Symbol}(), configuration)
+ScopeState() = ScopeState(true, Set{Symbol}(), Set{Symbol}(), Set{Symbol}())
 
 # The `union` and `union!` overloads define how two `SymbolsState`s or two `ScopeState`s are combined.
 
@@ -443,7 +437,7 @@ function explore_macrocall!(ex::Expr, scopestate::ScopeState)
     symstate = SymbolsState(macrocalls = Set{FunctionName}([macro_name]))
 
     for arg in ex.args[begin+1:end]
-        macro_symstate = explore!(arg, ScopeState(scopestate.configuration))
+        macro_symstate = explore!(arg, ScopeState())
         union!(symstate, SymbolsState(macrocalls = macro_symstate.macrocalls))
     end
 
@@ -1155,9 +1149,9 @@ compute_symbols_state(ex::Any)::SymbolsState
 
 Return the global references, assignment, function calls and function definitions inside an arbitrary expression, in a `SymbolsState` object.
 """
-function compute_symbols_state(ex::Any; configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration())::SymbolsState
+function compute_symbols_state(ex::Any)::SymbolsState
     try
-        compute_symbolreferences(ex; configuration)
+        compute_symbolreferences(ex)
     catch e
         if e isa InterruptException
             rethrow(e)
@@ -1168,8 +1162,8 @@ function compute_symbols_state(ex::Any; configuration::AbstractExpressionExplore
     end
 end
 
-function compute_symbolreferences(ex::Any; configuration::AbstractExpressionExplorerConfiguration=DefaultConfiguration())::SymbolsState
-    symstate = explore!(ex, ScopeState(configuration))
+function compute_symbolreferences(ex::Any)::SymbolsState
+    symstate = explore!(ex, ScopeState())
     handle_recursive_functions!(symstate)
     return symstate
 end

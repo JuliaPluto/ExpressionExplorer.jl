@@ -736,3 +736,29 @@ end
         ]
     )
 end
+
+@testset "Macros and heuristics w/o Pluto" begin
+    @test test_expression_explorer(;
+        expr=:(@macro import Pkg),
+        macrocalls=[Symbol("@macro")],
+        definitions=[],
+    )
+    @test test_expression_explorer(;
+        expr=:(@macro Pkg.activate("..")),
+        macrocalls=[Symbol("@macro")],
+        references=[],
+        funccalls=[],
+    )
+    @test test_expression_explorer(;
+        expr=:(@macro Pkg.add("Pluto.jl")),
+        macrocalls=[Symbol("@macro")],
+        references=[],
+        funccalls=[],
+    )
+    @test test_expression_explorer(;
+        expr=:(@macro include("Firebasey.jl")),
+        macrocalls=[Symbol("@macro")],
+        funccalls=[],
+    )
+end
+
