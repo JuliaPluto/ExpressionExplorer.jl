@@ -2,7 +2,7 @@ name = "ExpressionExplorer"
 uuid = "21656369-7473-754a-2065-74616d696c43"
 license = "MIT"
 authors = ["Paul Berg <paul@plutojl.org>", "Fons van der Plas <fons@plutojl.org>"]
-version = "0.6.0"
+version = "1.0.0"
 
 [compat]
 julia = "1.6"
