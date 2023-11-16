@@ -47,7 +47,6 @@ let
     @inferred EE.explore!(:(1 + 1), scopestate)
 
     # @inferred EE.split_funcname(:(Base.Submodule.f))
-    @inferred EE.maybe_macroexpand(:(@time 1))
 end
 
 @testset "Basics" begin
@@ -599,8 +598,8 @@ end
     @test testee(:(Base.@time a = 2), [], [], [], [], [[:Base, Symbol("@time")]])
     # @test_nowarn testee(:(@enum a b = d c), [:d], [:a, :b, :c], [Symbol("@enum")], [])
     # @enum is tested in test/React.jl instead
-    @test testee(:(@gensym a b c), [], [:a, :b, :c], [:gensym], [], [Symbol("@gensym")])
-    @test testee(:(Base.@gensym a b c), [], [:a, :b, :c], [:gensym], [], [[:Base, Symbol("@gensym")]])
+    @test testee(:(@gensym a b c), [], [], [], [], [Symbol("@gensym")])
+    @test testee(:(Base.@gensym a b c), [], [], [], [], [[:Base, Symbol("@gensym")]])
     @test testee(:(Base.@kwdef struct A; x = 1; y::Int = two; z end), [], [], [], [], [[:Base, Symbol("@kwdef")]])
     @test testee(quote "asdf" f(x) = x end, [], [], [], [], [Symbol("@doc")])
 
@@ -609,9 +608,9 @@ end
     @test_broken testee(:(Main.PlutoRunner.@bind a b), [:b], [:a], [[:Base, :get], [:Core, :applicable], [:PlutoRunner, :create_bond], [:PlutoRunner, Symbol("@bind")]], [], verbose=false)
     @test testee(:(let @bind a b end), [], [], [], [], [Symbol("@bind")])
 
-    @test testee(:(`hey $(a = 1) $(b)`), [:b], [], [:cmd_gen], [], [Symbol("@cmd")])
-    @test testee(:(md"hey $(@bind a b) $(a)"), [:a], [], [[:getindex]], [], [Symbol("@md_str"), Symbol("@bind")])
-    @test testee(:(md"hey $(a) $(@bind a b)"), [:a], [], [[:getindex]], [], [Symbol("@md_str"), Symbol("@bind")])
+    @test testee(:(`hey $(a = 1) $(b)`), [], [], [], [], [Symbol("@cmd")])
+    @test testee(:(md"hey $(@bind a b) $(a)"), [], [], [], [], [Symbol("@md_str")])
+    @test testee(:(md"hey $(a) $(@bind a b)"), [], [], [], [], [Symbol("@md_str")])
 
     @test testee(:(@asdf a = x1 b = x2 c = x3), [], [], [], [], [Symbol("@asdf")]) # https://github.com/fonsp/Pluto.jl/issues/670
 
@@ -621,9 +620,9 @@ end
 
 
     @test testee(:(html"a $(b = c)"), [], [], [], [], [Symbol("@html_str")])
-    @test testee(:(md"a $(b = c) $(b)"), [:c], [:b], [:getindex], [], [Symbol("@md_str")])
-    @test testee(:(md"\* $r"), [:r], [], [:getindex], [], [Symbol("@md_str")])
-    @test testee(:(md"a \$(b = c)"), [], [], [:getindex], [], [Symbol("@md_str")])
+    @test testee(:(md"a $(b = c) $(b)"), [], [], [], [], [Symbol("@md_str")])
+    @test testee(:(md"\* $r"), [], [], [], [], [Symbol("@md_str")])
+    @test testee(:(md"a \$(b = c)"), [], [], [], [], [Symbol("@md_str")])
     @test testee(:(macro a() end), [], [], [], [
         Symbol("@a") => ([], [], [], [])
     ])

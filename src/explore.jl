@@ -1,5 +1,4 @@
 
-import Markdown
 import Base: union, union!, ==
 
 ###
@@ -446,12 +445,6 @@ function explore_macrocall!(ex::Expr, scopestate::ScopeState)
     for arg in ex.args[begin+1:end]
         macro_symstate = explore!(arg, ScopeState(scopestate.configuration))
         union!(symstate, SymbolsState(macrocalls = macro_symstate.macrocalls))
-    end
-
-    # Some macros can be expanded on the server process
-    if macro_name.joined ∈ can_macroexpand
-        new_ex = maybe_macroexpand(ex)
-        union!(symstate, explore!(new_ex, scopestate))
     end
 
     return symstate
@@ -1009,45 +1002,6 @@ end
 function explore_funcdef!(::Any, ::ScopeState)::Tuple{FunctionName,SymbolsState}
     FunctionName(), SymbolsState()
 end
-
-
-module MacroExpandInHere
-using Markdown
-end
-
-const can_macroexpand = Set(Symbol.(["@md_str", "Markdown.@md_str", "@gensym", "Base.@gensym", "@enum", "Base.@enum", "@assert", "Base.@assert", "@cmd"]))
-
-"""
-If the macro is **known to Pluto**, expand or 'mock expand' it, if not, return the expression. Macros from external packages are not expanded, this is done later in the pipeline. See https://github.com/fonsp/Pluto.jl/pull/1032
-"""
-function maybe_macroexpand(ex::Expr; recursive::Bool=false)
-    result::Expr = if ex.head === :macrocall
-        funcname = split_funcname(ex.args[1])
-
-        if funcname.joined ∈ can_macroexpand
-            macroexpand(MacroExpandInHere, ex; recursive=false)::Expr
-        else
-            ex
-        end
-    else
-        ex
-    end
-
-    if recursive
-        # Not using broadcasting because that is expensive compilation-wise for `result.args::Any`.
-        expanded = Any[]
-        for arg in result.args
-            ex = maybe_macroexpand(arg; recursive)
-            push!(expanded, ex)
-        end
-        return Expr(result.head, expanded...)
-    else
-        return result
-    end
-end
-
-maybe_macroexpand(ex::Any; kwargs...) = ex
-
 
 ###
 # CANONICALIZE FUNCTION DEFINITIONS
