@@ -182,6 +182,8 @@ julia> ExpressionExplorer.compute_reactive_node(quote
 ReactiveNode(Set([Symbol("@time"), :y]), Set([:x]), Set{Symbol}(), Set{FunctionNameSignaturePair}(), Set{Symbol}(), Set([Symbol("@time")]))
 ```
 
+You can check whether there were any unexplored macro call arguments with the `.macrocalls` field of the `ReactiveNode`, which should be an empty set.
+
 To solve this, you can **macroexpand expressions before giving them to ExpressionExplorer**. For example:
 
 ```julia
