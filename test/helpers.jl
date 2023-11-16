@@ -51,11 +51,11 @@ julia> @test testee(:(
 true
 ```
 "
-function testee(expr::Any, expected_references, expected_definitions, expected_funccalls, expected_funcdefs, expected_macrocalls = []; verbose::Bool=true, configuration=ExpressionExplorer.DefaultConfiguration())
+function testee(expr::Any, expected_references, expected_definitions, expected_funccalls, expected_funcdefs, expected_macrocalls = []; verbose::Bool=true)
     expected = easy_symstate(expected_references, expected_definitions, expected_funccalls, expected_funcdefs, expected_macrocalls)
 
     original_hash = expr_hash(expr)
-    result = ExpressionExplorer.compute_symbolreferences(expr; configuration)
+    result = ExpressionExplorer.compute_symbolreferences(expr)
     # should not throw:
     ReactiveNode(result)
     
@@ -105,8 +105,8 @@ expr_hash(x) = objectid(x)
 """
 Like `testee` but actually a convenient syntax
 """
-function test_expression_explorer(; expr, references=[], definitions=[], funccalls=[], funcdefs=[], macrocalls=[], configuration::ExpressionExplorer.AbstractExpressionExplorerConfiguration=ExpressionExplorer.DefaultConfiguration())
-    testee(expr, references, definitions, funccalls, funcdefs, macrocalls; configuration)
+function test_expression_explorer(; expr, references=[], definitions=[], funccalls=[], funcdefs=[], macrocalls=[])
+    testee(expr, references, definitions, funccalls, funcdefs, macrocalls)
 end
 
 function easy_symstate(expected_references, expected_definitions, expected_funccalls, expected_funcdefs, expected_macrocalls = [])
