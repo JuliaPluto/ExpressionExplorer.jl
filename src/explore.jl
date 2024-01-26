@@ -826,7 +826,7 @@ function explore_module_definition!(ex::Expr, scopestate; module_depth::Number =
                 all(x -> x == :., import_name_expr.args[begin:end-1]) &&
                 import_name_expr.args[end] isa Symbol
             )
-                # Theoretically it could still use an assigment from the same cell, if it weren't
+                # Theoretically it could still use an assignment from the same cell, if it weren't
                 # for the fact that modules need to be top level, and we don't support multiple (toplevel) expressions in a cell yet :D
                 push!(symstate.references, import_name_expr.args[end])
             end

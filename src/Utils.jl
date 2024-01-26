@@ -17,7 +17,7 @@ is_toplevel_expr(::Any)::Bool = false
 get_rootassignee(ex)::Union{Symbol,Nothing}
 ```
 
-If the expression is a (simple) assignemnt at its root, return the assignee as `Symbol`, return `nothing` otherwise.
+If the expression is a (simple) assignment at its root, return the assignee as `Symbol`, return `nothing` otherwise.
 """
 function get_rootassignee(ex::Expr, recurse::Bool = true)::Union{Symbol,Nothing}
     if is_toplevel_expr(ex) && recurse

@@ -94,7 +94,7 @@ Set{Symbol} with 1 element:
 
 
 
-## Low-level: `SymbolsSate`
+## Low-level: `SymbolsState`
 
 If you are not interested in just the *dependencies* between expressions, there is a more low-level data structure available. (We include it for completeness, but Pluto does not use this data, except to generate a `ReactiveNode`.)
 
@@ -232,7 +232,7 @@ This function is used by Pluto's built-in package manager to learn which package
 get_rootassignee(ex)::Union{Symbol,Nothing}
 ```
 
-If the expression is a (simple) assignemnt at its root, return the assignee as `Symbol`, return `nothing` otherwise.
+If the expression is a (simple) assignment at its root, return the assignee as `Symbol`, return `nothing` otherwise.
 
 
 ### `is_toplevel_expr`
