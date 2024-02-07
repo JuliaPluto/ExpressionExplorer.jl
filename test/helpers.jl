@@ -3,6 +3,7 @@ using ExpressionExplorer
 using Test
 
 
+const ObjectID = typeof(objectid("hello computer"))
 
 function Base.show(io::IO, s::SymbolsState)
     print(io, "SymbolsState([")
