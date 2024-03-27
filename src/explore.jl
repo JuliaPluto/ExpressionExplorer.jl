@@ -441,7 +441,7 @@ function explore_macrocalls!(ex::Expr, macrocalls)
     if Meta.isexpr(ex, :macrocall)
         push!(macrocalls, split_funcname(ex.args[1]))
     end
-    for arg in @view ex.args[begin+1:end]
+    for arg in ex.args
         explore_macrocalls!(arg, macrocalls)
     end
     macrocalls
