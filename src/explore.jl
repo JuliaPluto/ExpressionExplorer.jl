@@ -432,16 +432,27 @@ function explore_generator!(ex::Expr, scopestate::ScopeState)
     return explore!(Expr(:for, Iterators.reverse(ex.args[2:end])..., ex.args[1]), scopestate)
 end
 
-function explore_macrocall!(ex::Expr, scopestate::ScopeState)
-    macro_name = split_funcname(ex.args[1])
-    symstate = SymbolsState(macrocalls = Set{FunctionName}([macro_name]))
-
-    for arg in ex.args[begin+1:end]
-        macro_symstate = explore!(arg, ScopeState())
-        union!(symstate, SymbolsState(macrocalls = macro_symstate.macrocalls))
+# explore! but only looking for macrocalls
+# this is a heuristic to detect recursive macrocalls
+# like `@eval @mymacro` which we couldn't
+# naively detect with `macroexpand` preprocessor since
+# we don't use macroexpand1
+function explore_macrocalls!(ex::Expr, macrocalls)
+    if Meta.isexpr(ex, :macrocall)
+        push!(macrocalls, split_funcname(ex.args[1]))
     end
+    for arg in ex.args
+        explore_macrocalls!(arg, macrocalls)
+    end
+    macrocalls
+end
+explore_macrocalls!(_, macrocalls) = macrocalls
 
-    return symstate
+
+function explore_macrocall!(ex::Expr, scopestate::ScopeState)
+    macrocalls = Set{FunctionName}()
+    explore_macrocalls!(ex, macrocalls)
+    return SymbolsState(;macrocalls)
 end
 
 function funcname_symstate!(funcname::FunctionName, scopestate::ScopeState)::SymbolsState

@@ -646,6 +646,10 @@ end
     @test testee(macroexpand(Main, :(@noinline f(x) = x)), [], [], [], [
         Symbol("f") => ([], [], [], [])
     ])
+    @test_nowarn test_expression_explorer(
+        expr=:(@mymacro a <: b = 2),
+        macrocalls=[Symbol("@mymacro")],
+    )
 end
 @testset "Module imports" begin
     @test test_expression_explorer(
