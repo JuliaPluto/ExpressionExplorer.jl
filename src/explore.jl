@@ -334,7 +334,7 @@ Returns whether or not an assignment Expr(:(=),...) is assigning to a new functi
 """
 is_function_assignment(ex::Expr)::Bool = ex.args[1] isa Expr && (ex.args[1].head === :call || ex.args[1].head === :where || (ex.args[1].head === :(::) && ex.args[1].args[1] isa Expr && ex.args[1].args[1].head === :call))
 
-anonymous_name() = Symbol("anon", rand(UInt64))
+anonymous_name() = Symbol("__ExprExpl_anon__", rand(UInt64))
 
 function explore_assignment!(ex::Expr, scopestate::ScopeState)::SymbolsState
     # Does not create scope
