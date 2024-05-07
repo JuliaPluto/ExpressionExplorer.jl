@@ -47,14 +47,15 @@ You can use the function `compute_reactive_node(expression)` to explore an expre
 
 ### Example for `compute_reactive_node`
 
+Let's compute the `ReactiveNode` for these two expressions:
 
 ```julia
-julia> # the two expressions that we will use in this example:
-
 julia> e1 = :(weather = magic() + science);
 
 julia> e2 = :(weather() = magic() + science);
 ```
+
+First one:
 
 ```julia
 julia> r1 = ExpressionExplorer.compute_reactive_node(e1)
@@ -73,6 +74,8 @@ Set{Symbol} with 3 elements:
 julia> r1.funcdefs_without_signatures
 Set{Symbol}()
 ```
+
+Second one, note that `weather` is a function definition, so it does not show up in `r2.definitions`. If you want everything that is defined, you can use `r2.definitions ∪ r2.funcdefs_without_signatures`.
 
 ```julia
 julia> r2 = ExpressionExplorer.compute_reactive_node(e2)
