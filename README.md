@@ -199,6 +199,9 @@ ReactiveNode(Set([:first, :GC_Diff, :isnothing, :gc_alloc_count, :-, :gc_num, :c
 
 Notice that now, `AAA` and `BBB` are detected, along with functions used inside the `@time` expression.
 
+### Ignoring macros
+You can also ignore all macros, and analyse the macro call arguments as if the macro was not there. [Here](https://github.com/JuliaPluto/ExpressionExplorer.jl/issues/21) is a discussion showing how to do it.
+
 ## Utility functions
 
 The package also includes some utility functions used by Pluto.jl, that might also be useful to other packages.
