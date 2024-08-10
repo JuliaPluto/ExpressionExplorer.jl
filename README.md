@@ -2,13 +2,14 @@
  
 Find all variables _referenced_ and _defined_ in an expression. This package is used internally by Pluto to find links between cells.
 
-### Quick example
+### Quick example: `const words = split(line)`
 
 ```julia
 julia> using ExpressionExplorer
 
 julia> ex = :(const words = split(line));
-
+```
+```julia
 julia> node = ExpressionExplorer.compute_reactive_node(ex);
 
 julia> node.references
@@ -20,6 +21,13 @@ julia> node.definitions
 Set{Symbol} with 1 element:
   :words
 ```
+
+### PlutoDependencyExplorer.jl
+This package (ExpressionExplorer.jl) is used by the package [PlutoDependencyExplorer.jl](https://github.com/JuliaPluto/PlutoDependencyExplorer.jl), which is used by Pluto.jl.
+
+**ExpressionExplorer.jl** looks at a single expression, and gives the definitions and references. 
+
+**[PlutoDependencyExplorer.jl](https://github.com/JuliaPluto/PlutoDependencyExplorer.jl)** looks at a series of expressions (i.e. all cells in a notebook) and gives the "topological order": the order in which to run cells, taking definitions and references into account.
 
 # API
 
