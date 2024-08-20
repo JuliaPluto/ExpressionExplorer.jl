@@ -90,6 +90,15 @@ end
     @test testee(:(let abstract type a end end), [], [:a], [], [
         :a => ([], [], [], [])
     ])
+    @test testee(:(primitive type Int24 24 end), [], [:Int24], [], [
+        :Int24 => ([], [], [], [])
+    ])
+    @test testee(:(primitive type Int24 <: Integer 24 end), [], [:Int24], [], [
+        :Int24 => ([:Integer], [], [], [])
+    ])
+    @test testee(:(primitive type Int24 <: Integer size end), [:size], [:Int24], [], [
+        :Int24 => ([:Integer], [], [], [])
+    ])
 
     @test testee(:(module a; f(x) = x; z = r end), [], [:a], [], [])
 end

@@ -535,6 +535,12 @@ function explore_abstract!(ex::Expr, scopestate::ScopeState)
     explore_struct!(Expr(:struct, false, ex.args[1], Expr(:block, nothing)), scopestate)
 end
 
+function explore_primitive!(ex::Expr, scopestate::ScopeState)
+    type_name, type_body = ex.args
+    symstate = explore_struct!(Expr(:struct, false, type_name, Expr(:block)), scopestate)
+    union!(symstate, explore!(type_body, scopestate))
+end
+
 function explore_function_macro!(ex::Expr, scopestate::ScopeState)
     symstate = SymbolsState()
     # Creates local scope
@@ -784,6 +790,8 @@ function explore!(ex::Expr, scopestate::ScopeState)::SymbolsState
         return explore!(ex.args[2], scopestate)
     elseif ex.head === :struct
         return explore_struct!(ex, scopestate)
+    elseif ex.head === :primitive
+        return explore_primitive!(ex, scopestate)
     elseif ex.head === :abstract
         return explore_abstract!(ex, scopestate)
     elseif ex.head === :function || ex.head === :macro
@@ -966,7 +974,7 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         return name, symstate
 
     elseif ex.head === :(<:)
-        # for use in `struct` and `abstract`
+        # for use in `struct`, `abstract` and `primitive`
         name, symstate = uncurly!(ex.args[1], scopestate)
         if length(ex.args) != 1
             union!(symstate, explore!(ex.args[2], scopestate))
