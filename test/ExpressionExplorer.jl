@@ -70,6 +70,10 @@ end
     @test_nowarn testee(:(function f(function g() end) end), [], [], [:+], [], verbose=false)
     @test_nowarn testee(:(function f() Base.sqrt(x::String) = 2; end), [], [], [:+], [], verbose=false)
     @test_nowarn testee(:(function f() global g(x) = x; end), [], [], [], [], verbose=false)
+
+    @test_nowarn testee(:(primitive type $(esc(:Fruit)) <: T 32 end), [], [:Fruit], [], [
+        :Fruit => ([:T], [], [], [])
+    ])
 end
 @testset "Lists and structs" begin
     @test testee(:(1:3), [], [], [:(:)], [])
@@ -99,7 +103,9 @@ end
     @test testee(:(primitive type Int24 <: Integer size end), [:size], [:Int24], [], [
         :Int24 => ([:Integer], [], [], [])
     ])
-
+    @test_nowarn testee(:(primitive type $(esc(:Fruit)) <: T 32 end), [], [:Fruit], [], [
+        :Fruit => ([:T], [], [], [])
+    ])
     @test testee(:(module a; f(x) = x; z = r end), [], [:a], [], [])
 end
 @testset "Types" begin
