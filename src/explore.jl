@@ -887,6 +887,9 @@ function to_kw(ex::Expr)
 end
 to_kw(x) = x
 
+unescape(x::Expr) = Meta.isexpr(x, :escape) ? x.args[1] : x
+unescape(x) = x
+
 """
 Return the function name and the SymbolsState from argument defaults. Add arguments as hidden globals to the `scopestate`.
 
@@ -975,7 +978,7 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
 
     elseif ex.head === :(<:)
         # for use in `struct`, `abstract` and `primitive`
-        name, symstate = uncurly!(ex.args[1], scopestate)
+        name, symstate = uncurly!(unescape(ex.args[1]), scopestate)
         if length(ex.args) != 1
             union!(symstate, explore!(ex.args[2], scopestate))
         end
