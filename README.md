@@ -124,7 +124,10 @@ end
 with
 
 ```julia
-const FunctionName = Vector{Symbol}
+struct FunctionName{N}
+    parts::NTuple{N,Symbol}
+    joined::Symbol
+end
 
 struct FunctionNameSignaturePair
     name::FunctionName
