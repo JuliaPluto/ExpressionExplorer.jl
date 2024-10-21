@@ -280,13 +280,10 @@ end
     @test testee(:(try 1 catch e; e finally a end), [:a], [], [], [])
     @test testee(:(try 1 finally a end), [:a], [], [], [])
 
-    # try catch else was introduced in 1.8
-    @static if VERSION >= v"1.8.0"
-        @test testee(Meta.parse("try 1 catch else x = 1; x finally a; end"), [:a], [], [], [])
-        @test testee(Meta.parse("try 1 catch else x = j; x finally a; end"), [:a, :j], [], [], [])
-        @test testee(Meta.parse("try x = 2 catch else x finally a; end"), [:a, :x], [], [], [])
-        @test testee(Meta.parse("try x = 2 catch else x end"), [:x], [], [], [])
-    end
+    @test testee(:(try 1 catch else x = 1; x finally a; end), [:a], [], [], [])
+    @test testee(:(try 1 catch else x = j; x finally a; end), [:a, :j], [], [], [])
+    @test testee(:(try x = 2 catch else x finally a; end), [:a, :x], [], [], [])
+    @test testee(:(try x = 2 catch else x end), [:x], [], [], [])
 end
 @testset "Comprehensions" begin
     @test testee(:([sqrt(s) for s in 1:n]), [:n], [], [:sqrt, :(:)], [])

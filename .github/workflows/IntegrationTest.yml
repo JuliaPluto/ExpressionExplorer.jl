@@ -21,7 +21,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                julia-version: [1]
+                julia-version: ["1"]
                 os: [ubuntu-latest]
                 package:
                     - { user: JuliaPluto, repo: PlutoDependencyExplorer.jl }
@@ -30,7 +30,7 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
-            - uses: julia-actions/setup-julia@v1
+            - uses: julia-actions/setup-julia@v2
               with:
                   version: ${{ matrix.julia-version }}
                   arch: x64
