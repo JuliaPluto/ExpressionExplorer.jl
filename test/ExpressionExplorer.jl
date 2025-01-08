@@ -662,6 +662,12 @@ end
         expr=:(@mymacro a <: b = 2),
         macrocalls=[Symbol("@mymacro")],
     )
+
+    @test test_expression_explorer(
+        expr=@macroexpand(@inbounds a[i] = 2x),
+        references=[:a, :i, :x],
+        funccalls=[:*],
+    )
 end
 @testset "Module imports" begin
     @test test_expression_explorer(
