@@ -817,7 +817,7 @@ function explore!(ex::Expr, scopestate::ScopeState)::SymbolsState
     elseif Meta.isexpr(ex, Symbol("'"), 1)
         # a' corresponds to adjoint(a)
         return explore!(Expr(:call, :adjoint, ex.args[1]), scopestate)
-    elseif ex.head === :meta
+    elseif Meta.isexpr(ex, :meta) || Meta.isexpr(ex, :inbounds)
         return SymbolsState()
     else
         return explore_fallback!(ex, scopestate)
