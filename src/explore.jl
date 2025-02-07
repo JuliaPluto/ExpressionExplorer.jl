@@ -146,7 +146,7 @@ function get_global_assignees(assignee_exprs, scopestate::ScopeState)::Set{Symbo
             if ae.head == :(::)
                 will_assign_global(ae.args[1], scopestate) && push!(global_assignees, ae.args[1])
             else
-                @warn "Unknown assignee expression" ae
+                @debug "Unknown assignee expression" ae
             end
         end
     end
@@ -174,7 +174,7 @@ function get_assignees(ex::Expr)::Vector{Symbol}
         args = ex.args
         mapfoldl(get_assignees, union!, args; init=Symbol[])
     else
-        @warn "unknown use of `=`. Assignee is unrecognised." ex
+        @debug "unknown use of `=`. Assignee is unrecognised." ex
         Symbol[]
     end
 end
@@ -687,7 +687,7 @@ function explore_local!(ex::Expr, scopestate::ScopeState)::SymbolsState
         union!(scopestate.hiddenglobals, get_assignees(localisee.args[1]))
         return explore!(localisee, scopestate)::SymbolsState
     else
-        @warn "unknown local use" ex
+        @debug "unknown local use" ex
         return explore!(localisee, scopestate)::SymbolsState
     end
 end
@@ -1038,7 +1038,7 @@ julia> f(x) = 2
 f (generic function with 1 method)
 ``
 
-After adding the second method, the function still has only 1 method. This is because the second definition overrides the first one, instead of being added to the method table. This example should be illegal in Julia, for the same reason that `f = 1` and `f = 2` is illegal. So our problem is: how do we know that two cells will define overlapping methods? 
+After adding the second method, the function still has only 1 method. This is because the second definition overrides the first one, instead of being added to the method table. This example should be illegal in Julia, for the same reason that `f = 1` and `f = 2` is illegal. So our problem is: how do we know that two cells will define overlapping methods?
 
 Ideally, we would just evaluate the user's code and **count methods** afterwards, letting Julia do the work. Unfortunately, we need to know this info _before_ we run cells, otherwise we don't know in which order to run a notebook! There are ways to break this circle, but it would complicate our process quite a bit.
 
@@ -1080,8 +1080,8 @@ _(More precisely, evaluating `Expr(:function, x, Expr(:block))` with `x ∈ {a, 
 
 The equivalence sets are isomorphic to the set of possible Julia methods.
 
-Instead of finding a closed form algorithm for `~`, we search for a _canonical form_: a function `canonical: H -> H` that chooses one canonical expression per equivalence class. It has the property 
-    
+Instead of finding a closed form algorithm for `~`, we search for a _canonical form_: a function `canonical: H -> H` that chooses one canonical expression per equivalence class. It has the property
+
 `canonical(a) = canonical(b)` implies `a ~ b`.
 
 We use this **canonical form** of the function's definition expression as its "signature". We compare these canonical forms when determining whether two function expressions will result in overlapping methods.
@@ -1156,7 +1156,7 @@ function handle_recursive_functions!(symstate::SymbolsState)
     # We do something special to account for recursive functions:
     # If a function `f` calls a function `g`, and both are defined inside this cell, the reference to `g` inside the symstate of `f` will be deleted.
     # The motivitation is that normally, an assignment (or function definition) will add that symbol to a list of 'hidden globals' - any future references to that symbol will be ignored. i.e. the _local definition hides a global_.
-    # In the case of functions, you can reference functions and variables that do not yet exist, and so they won't be in the list of hidden symbols when the function definition is analysed. 
+    # In the case of functions, you can reference functions and variables that do not yet exist, and so they won't be in the list of hidden symbols when the function definition is analysed.
     # Of course, our method will fail if a referenced function is defined both inside the cell **and** in another cell. However, this will lead to a MultipleDefinitionError before anything bad happens.
     K = keys(symstate.funcdefs)
     for (func, inner_symstate) in symstate.funcdefs
