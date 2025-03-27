@@ -1178,8 +1178,8 @@ function compute_symbols_state(ex::Any)::SymbolsState
         if e isa InterruptException
             rethrow(e)
         end
-        @error "Expression explorer failed on: " ex
-        showerror(stderr, e, stacktrace(catch_backtrace()))
+        @error "Expression explorer failed on: " ex exception=(e,catch_backtrace())
+
         SymbolsState(references = Set{Symbol}([:fake_reference_to_prevent_it_from_looking_like_a_text_only_cell]))
     end
 end
