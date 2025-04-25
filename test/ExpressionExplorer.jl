@@ -134,7 +134,19 @@ end
     @test testee(:(abstract type a{T,S} end), [], [:a], [], [:a => ([], [], [], [])])
     @test testee(:(abstract type a{T} <: b end), [], [:a], [], [:a => ([:b], [], [], [])])
     @test testee(:(abstract type a{T} <: b{T} end), [], [:a], [], [:a => ([:b], [], [], [])])
-    testee(macroexpand(Main, :(@enum a b c)), [], [], [], []; verbose=false)
+    
+    # testee(macroexpand(Main, :(@enum NewType1 xx yy)), [], [], [], []; verbose=false) # test that it runs without error
+    let result = ExpressionExplorer.compute_symbols_state(
+        macroexpand(Main, :(@enum NewType2 xx yy))
+    )
+        
+        # @test :NewType2 ∉ result.references
+        # @test :xx ∉ result.references
+
+        # @test :NewType2 ∈ result.assignments
+        @test :xx ∈ result.assignments
+        @test :yy ∈ result.assignments
+    end
 
     e = :(struct a end) # needs to be on its own line to create LineNumberNode
     @test testee(e, [], [:a], [], [:a => ([], [], [], [])])
@@ -345,6 +357,9 @@ end
     ])
     @test testee(:(function (A::MyType)(x; y=x) y + x end), [], [], [], [
         :MyType => ([], [], [:+], [])
+    ])
+    @test testee(:(function $(esc(:g))() r = 2; r end), [], [], [], [
+        :g => ([], [], [], [])
     ])
     @test testee(:(f(x, y=a + 1) = x * y * z), [], [], [], [
         :f => ([:z, :a], [], [:*, :+], [])
