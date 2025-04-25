@@ -173,6 +173,8 @@ function get_assignees(ex::Expr)::Vector{Symbol}
         # Handles splat assignments. e.g. _, y... = 1:5
         args = ex.args
         mapfoldl(get_assignees, union!, args; init=Symbol[])
+    elseif Meta.isexpr(ex, :escape, 1)
+        get_assignees(ex.args[1])
     else
         @warn "unknown use of `=`. Assignee is unrecognised." ex
         Symbol[]
@@ -1000,6 +1002,8 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
         return split_funcname(ex), SymbolsState()
 
     elseif ex.head === :(...)
+        return explore_funcdef!(ex.args[1], scopestate)
+    elseif ex.head === :escape
         return explore_funcdef!(ex.args[1], scopestate)
     else
         return FunctionName(), explore!(ex, scopestate)
