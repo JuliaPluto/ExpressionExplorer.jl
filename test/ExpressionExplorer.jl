@@ -136,16 +136,16 @@ end
     @test testee(:(abstract type a{T} <: b{T} end), [], [:a], [], [:a => ([:b], [], [], [])])
     
     # testee(macroexpand(Main, :(@enum NewType1 xx yy)), [], [], [], []; verbose=false) # test that it runs without error
-    let result = ExpressionExplorer.compute_symbols_state(
+    let result = ExpressionExplorer.compute_reactive_node(
         macroexpand(Main, :(@enum NewType2 xx yy))
     )
         
-        # @test :NewType2 ∉ result.references
-        # @test :xx ∉ result.references
+        @test :NewType2 ∉ result.references
+        @test :xx ∉ result.references
 
-        # @test :NewType2 ∈ result.assignments
-        @test :xx ∈ result.assignments
-        @test :yy ∈ result.assignments
+        @test :NewType2 ∈ result.definitions ∪ result.funcdefs_without_signatures
+        @test :xx ∈ result.definitions
+        @test :yy ∈ result.definitions
     end
 
     e = :(struct a end) # needs to be on its own line to create LineNumberNode
