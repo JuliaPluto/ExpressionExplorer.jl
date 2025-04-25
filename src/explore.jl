@@ -1003,6 +1003,8 @@ function explore_funcdef!(ex::Expr, scopestate::ScopeState)::Tuple{FunctionName,
 
     elseif ex.head === :(...)
         return explore_funcdef!(ex.args[1], scopestate)
+    elseif ex.head === :escape
+        return explore_funcdef!(ex.args[1], scopestate)
     else
         return FunctionName(), explore!(ex, scopestate)
     end
