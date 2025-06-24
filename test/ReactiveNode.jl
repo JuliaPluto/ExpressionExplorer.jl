@@ -12,6 +12,6 @@
     @test rn.macrocalls == Set([Symbol("@asdf")])
 
     rn = compute_reactive_node(:(Pack.@asdf a[1,k[j]] := log(x[i]/y[j])))
-    @test rn.references == Set([:Pack])
+    @test rn.references == Set([:Pack, Symbol("Pack.@asdf")])
     @test rn.macrocalls == Set([Symbol("Pack.@asdf")])
 end

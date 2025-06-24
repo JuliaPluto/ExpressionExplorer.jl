@@ -51,8 +51,9 @@ function ReactiveNode(symstate::SymbolsState)
 	FunctionDependencies.maybe_add_dependent_funccalls!(funccalls)
 	union!(result.references, funccalls)
 
+	# Both the first part and the joined paths may be needed for reactivity, see PR #30.
 	macrocalls_first_part = Set{Symbol}(first(x.parts) for x in symstate.macrocalls)
-	union!(result.references, macrocalls_first_part)
+	union!(result.references, macrocalls_first_part, macrocalls_joined)
 
 	for (namesig, body_symstate) in symstate.funcdefs
 		push!(result.funcdefs_with_signatures, namesig)
