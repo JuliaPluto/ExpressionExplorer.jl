@@ -14,7 +14,6 @@ on:
         paths-ignore:
             - '**.md'
 
-
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
     test:
@@ -25,12 +24,12 @@ jobs:
             # Without setting this, a failing test cancels all others
             fail-fast: false
             matrix:
-                julia-version: ["1.10", "1", "nightly"] # , "~1.12.0-0"]
+                julia-version: ['1.10', '1', 'nightly'] # , "~1.12.0-0"]
                 os: [ubuntu-latest]
 
         steps:
             # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
 
             # Makes the `julia` command available
             - uses: julia-actions/setup-julia@v2
