@@ -323,6 +323,10 @@ end
 function explore!(sym::Symbol, scopestate::ScopeState)::SymbolsState
     if sym ∈ scopestate.hiddenglobals
         SymbolsState()
+    elseif sym ∈ (:begin, :end)
+        # in indexing these symbols may appear. They are not globals, but syntax,
+        # hence there is no way to use these as real symbols anywhere else.
+        SymbolsState()
     else
         SymbolsState(references = Set([sym]))
     end
