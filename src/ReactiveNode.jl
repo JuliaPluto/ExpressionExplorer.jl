@@ -73,4 +73,32 @@ function ReactiveNode(symstate::SymbolsState)
 end
 
 # Mot just a method of ReactiveNode because an expression is not necessarily a `Expr`, e.g. `Meta.parse("\"hello!\"") isa String`.
+"""
+    compute_reactive_node(expr::Any; kwargs...)
+
+Compute the reactive node representation of an expression.
+
+This is the main high-level function for analyzing Julia expressions to determine their reactive
+dependencies. It parses the expression and returns a [`ReactiveNode`](@ref) containing:
+- Variables referenced by the expression
+- Variables assigned/defined by the expression
+- Function definitions with and without signatures
+- Macro calls
+
+# Arguments
+- `expr::Any`: the Julia expression to analyze (can be an `Expr`, `Symbol`, or other literal)
+- `kwargs...`: keyword arguments passed to `compute_symbols_state`
+
+# Returns
+- `ReactiveNode`: a struct containing all the reactive information about the expression
+
+# Examples
+```julia
+julia> expr = :(weather = magic + science)
+julia> compute_reactive_node(expr)
+ReactiveNode(references=Set([:magic, :science]), definitions=Set([:weather]), ...)
+```
+
+See also: [`ReactiveNode`](@ref), [`compute_symbols_state`](@ref)
+"""
 compute_reactive_node(expr::Any; kwargs...) = ReactiveNode(compute_symbols_state(expr; kwargs...))
