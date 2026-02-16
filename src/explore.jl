@@ -769,7 +769,8 @@ end
 function explore_module!(ex::Expr, scopestate::ScopeState)
     # Does create it's own scope, but can import from outer scope, that's what `explore_module_definition!` is for
     symstate = explore_module_definition!(ex, scopestate)
-    return union(symstate, SymbolsState(assignments = Set{Symbol}([ex.args[2]])))::SymbolsState
+    module_name_num = ex.args[1] isa VersionNumber ? 3 : 2
+    return union(symstate, SymbolsState(assignments = Set{Symbol}([ex.args[module_name_num]])))::SymbolsState
 end
 
 function explore_fallback!(ex::Expr, scopestate::ScopeState)
@@ -873,7 +874,8 @@ function explore_module_definition!(ex::Expr, scopestate; module_depth::Number =
         return symstate
     elseif ex.head === :module
         # Explorer the block inside with one more depth added
-        return explore_module_definition!(ex.args[3], scopestate, module_depth = module_depth + 1)
+        block_num = ex.args[1] isa VersionNumber ? 4 : 3
+        return explore_module_definition!(ex.args[block_num], scopestate, module_depth = module_depth + 1)
     elseif ex.head === :quote
         # TODO? Explore interpolations, modules can't be in interpolations, but `import`'s can >_>
         return SymbolsState()
