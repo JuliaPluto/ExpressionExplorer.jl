@@ -1,4 +1,5 @@
 include("helpers.jl")
+include("codequality.jl")
 include("ExpressionExplorer.jl")
 include("ReactiveNode.jl")
 include("UsingsImports.jl")

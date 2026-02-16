@@ -7,6 +7,22 @@ import Base: union, union!, ==
 
 # See https://gist.github.com/fonsp/fc7ace2bd8a0dfc2f87d694336f6c04a for the performance of using storing `parts` as a `Tuple`.
 
+"""
+    FunctionName{N}
+
+Represents a function name that may be qualified with module names.
+
+# Fields
+- `parts::NTuple{N,Symbol}`: the parts of the function name, e.g. `(:Base, :sqrt)` for `Base.sqrt`
+- `joined::Symbol`: the joined representation with dots, e.g. `Symbol("Base.sqrt")`
+
+# Examples
+```julia
+FunctionName(:sqrt)  # Simple function name
+FunctionName(:Base, :sqrt)  # Qualified function name
+FunctionName([:Base, :sqrt])  # From a vector
+```
+"""
 struct FunctionName{N}
     parts::NTuple{N,Symbol}
     joined::Symbol
