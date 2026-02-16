@@ -10,7 +10,9 @@ ThisPackage = ExpressionExplorer
     end
     @test ExplicitImports.check_no_stale_explicit_imports(ThisPackage) === nothing
     @test ExplicitImports.check_all_qualified_accesses_via_owners(ThisPackage) === nothing
-    @test ExplicitImports.check_all_qualified_accesses_are_public(ThisPackage) === nothing
+    if VERSION >= v"1.12"
+        @test ExplicitImports.check_all_qualified_accesses_are_public(ThisPackage) === nothing
+    end
     @test ExplicitImports.check_no_self_qualified_accesses(ThisPackage) === nothing
 end
 
