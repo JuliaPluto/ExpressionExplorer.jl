@@ -1,6 +1,6 @@
 using Aqua, ExplicitImports, ExpressionExplorer
 
-ThisPackage = ExpressionExplorer
+const ThisPackage = ExpressionExplorer
 
 @testset "ExplicitImports" begin
     @test ExplicitImports.check_no_implicit_imports(ThisPackage) === nothing
