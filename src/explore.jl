@@ -768,7 +768,7 @@ end
 
 function explore_module!(ex::Expr, scopestate::ScopeState)
     # Does create it's own scope, but can import from outer scope, that's what `explore_module_definition!` is for
-    symstate xp    module_name_num = ex.args[1] isa VersionNumber ? 3 : 2
+    module_name_num = ex.args[1] isa VersionNumber ? 3 : 2
     return union(symstate, SymbolsState(assignments = Set{Symbol}([ex.args[module_name_num]])))::SymbolsState
 end
 
