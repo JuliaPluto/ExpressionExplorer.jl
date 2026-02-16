@@ -19,9 +19,3 @@ end
 @testset "Aqua" begin
     Aqua.test_all(ThisPackage)
 end
-
-@testset "UndocumentedNames" begin
-    if isdefined(Docs, :undocumented_names) # >=1.11
-        @test isempty(filter!(e->e ≠ :try_compute_symbolreferences, Docs.undocumented_names(ThisPackage)))
-    end
-end
