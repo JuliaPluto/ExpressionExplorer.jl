@@ -11,7 +11,12 @@ export compute_symbols_state,
     SymbolsState,
     FunctionName,
     FunctionNameSignaturePair,
-    compute_usings_imports
+    compute_usings_imports,
+    UsingsImports,
+    ScopeState,
+    external_package_names,
+    is_function_assignment,
+    split_funcname
 
 include("./explore.jl")
 include("./UsingsImports.jl")
