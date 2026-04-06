@@ -107,6 +107,8 @@ end
         :Fruit => ([:T], [], [], [])
     ])
     @test testee(:(module a; f(x) = x; z = r end), [], [:a], [], [])
+    # Julia 1.12 hygienic macro expansion wraps module names in Expr(:escape, :Name)
+    @test testee(Expr(:module, true, Expr(:escape, :a), Expr(:block)), [], [:a], [], [])
 end
 @testset "Types" begin
     @test testee(:(x::Foo = 3), [:Foo], [:x], [], [])
