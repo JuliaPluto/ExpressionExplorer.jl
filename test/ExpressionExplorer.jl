@@ -107,8 +107,21 @@ end
         :Fruit => ([:T], [], [], [])
     ])
     @test testee(:(module a; f(x) = x; z = r end), [], [:a], [], [])
-    # Julia 1.12 hygienic macro expansion wraps module names in Expr(:escape, :Name)
-    @test testee(Expr(:module, true, Expr(:escape, :a), Expr(:block)), [], [:a], [], [])
+end
+# Julia 1.12+ hygienic macro expansion can wrap module names in Expr(:escape, :Name)
+# inside Expr(Symbol("hygienic-scope"), ...) when macros use esc() with :toplevel.
+# See https://github.com/JuliaPluto/ExpressionExplorer.jl/pull/36
+macro _ee_test_enumlike(name)
+    quote
+        $(Expr(:toplevel, :(baremodule $(esc(name))
+            primitive type T 8 end
+        end)))
+    end
+end
+@testset "Macroexpanded module" begin
+    expanded = macroexpand(@__MODULE__, :(@_ee_test_enumlike TestModFromMacro))
+    # Should not error, and should detect the module definition
+    @test_nowarn ExpressionExplorer.compute_symbolreferences(expanded)
 end
 @testset "Types" begin
     @test testee(:(x::Foo = 3), [:Foo], [:x], [], [])
