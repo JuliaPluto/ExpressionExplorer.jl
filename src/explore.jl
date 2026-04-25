@@ -770,7 +770,12 @@ function explore_module!(ex::Expr, scopestate::ScopeState)
     # Does create it's own scope, but can import from outer scope, that's what `explore_module_definition!` is for
     symstate = explore_module_definition!(ex, scopestate)
     module_name_num = ex.args[1] isa VersionNumber ? 3 : 2
-    return union(symstate, SymbolsState(assignments = Set{Symbol}([ex.args[module_name_num]])))::SymbolsState
+    # On Julia 1.12+, hygienic macro expansion may wrap the module name in
+    # `Expr(:escape, :Name)`, so we unwrap it here. The `isa Symbol` guard
+    # skips anything we can't reduce to a plain name (e.g. interpolations).
+    module_name = unescape(ex.args[module_name_num])
+    assignments = module_name isa Symbol ? Set{Symbol}([module_name]) : Set{Symbol}()
+    return union(symstate, SymbolsState(; assignments))::SymbolsState
 end
 
 function explore_fallback!(ex::Expr, scopestate::ScopeState)
