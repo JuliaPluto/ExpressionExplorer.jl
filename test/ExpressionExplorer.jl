@@ -121,7 +121,7 @@ end
 @testset "Macroexpanded module" begin
     expanded = macroexpand(@__MODULE__, :(@_ee_test_enumlike TestModFromMacro))
     # Should not error, and should detect the module definition
-    @test_nowarn ExpressionExplorer.compute_symbolreferences(expanded)
+    @test testee(expanded, [], [:TestModFromMacro], [], [])
 end
 @testset "Types" begin
     @test testee(:(x::Foo = 3), [:Foo], [:x], [], [])
