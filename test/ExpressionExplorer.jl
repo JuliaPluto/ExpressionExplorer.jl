@@ -355,6 +355,12 @@ end
     @test testee(:(function f(x; y=x) y + x end), [], [], [], [
         :f => ([], [], [:+], [])
     ])
+    @test testee(:(function f(x; y...) y + x end), [], [], [], [
+        :f => ([], [], [:+], [])
+    ])
+    @test testee(:(function f(x; y=x...) y + x end), [], [], [], [
+        :f => ([], [], [:+], [])
+    ])
     @test testee(:(function (A::MyType)(x; y=x) y + x end), [], [], [], [
         :MyType => ([], [], [:+], [])
     ])
