@@ -569,6 +569,10 @@ end
     ])
     @test testee(:((begin x = 1 end, y)), [:y], [:x], [], [])
     @test testee(:(x = let; global a += 1 end), [:a], [:x, :a], [:+], [])
+    @test testee(:(begin local function f(x) x^3 end end), [], [], [:^], [])
+    @test testee(:(begin local function f(x) global y = x + z end end), [:z], [:y], [:+], [])
+    @test testee(:(begin local macro m(x) x^3 end end), [], [], [:^], [], [])
+    @test testee(:(begin local macro m(x) global y = x + z end end), [:z], [:y], [:+], [], [])
 end
 @testset "`import` & `using`" begin
     @test testee(:(using Plots), [], [:Plots], [], [])

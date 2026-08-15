@@ -704,6 +704,12 @@ function explore_local!(ex::Expr, scopestate::ScopeState)::SymbolsState
     elseif isa(localisee, Expr) && (localisee.head === :(=) || localisee.head in modifiers)
         union!(scopestate.hiddenglobals, get_assignees(localisee.args[1]))
         return explore!(localisee, scopestate)::SymbolsState
+	elseif isa(localisee, Expr) && (localisee.head === :function || localisee.head === :macro)
+        old = scopestate.inglobalscope
+        scopestate.inglobalscope = false
+        result = explore!(localisee, scopestate)
+        scopestate.inglobalscope = old
+        return result::SymbolsState
     else
         @warn "unknown local use" ex
         return explore!(localisee, scopestate)::SymbolsState
