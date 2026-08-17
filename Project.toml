@@ -7,7 +7,7 @@ authors = ["Paul Berg <paul@plutojl.org>", "Fons van der Plas <fons@plutojl.org>
 [deps]
 
 [compat]
-Aqua = "0.8.14"
+Aqua = "0.8.14, 1"
 ExplicitImports = "1.15.0"
 julia = "1.10"
 Markdown = "1.10"

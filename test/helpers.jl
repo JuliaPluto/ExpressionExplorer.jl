@@ -32,7 +32,7 @@ function Base.show(io::IO, s::SymbolsState)
     end
 end
 
-"Calls `ExpressionExplorer.compute_symbolreferences` on the given `expr` and test the found SymbolsState against a given one, with convient syntax.
+"Calls `ExpressionExplorer.compute_symbolreferences` on the given `expr` and test the found SymbolsState against a given one, with convenient syntax.
 
 # Example
 
