@@ -549,6 +549,42 @@ function explore_struct!(ex::Expr, scopestate::ScopeState)
     return inner_symstate
 end
 
+function typegroup_struct_name(ex::Expr)
+    ex.head === :struct || return nothing
+
+    name = unescape(ex.args[2])
+    while name isa Expr && (name.head === :curly || name.head === :(<:))
+        name = unescape(name.args[1])
+    end
+    return name isa Symbol ? name : nothing
+end
+typegroup_struct_name(::Any) = nothing
+
+function hide_typegroup_references!(symstate::SymbolsState, type_names::Set{Symbol})
+    setdiff!(symstate.references, type_names)
+    filter!(symstate.funccalls) do name
+        length(name.parts) != 1 || name.parts[1] ∉ type_names
+    end
+    for inner_symstate in values(symstate.funcdefs)
+        hide_typegroup_references!(inner_symstate, type_names)
+    end
+    return symstate
+end
+
+function explore_typegroup!(ex::Expr, scopestate::ScopeState)
+    body = ex.args[1]
+    type_names = Set{Symbol}()
+    if Meta.isexpr(body, :block)
+        for member in body.args
+            name = typegroup_struct_name(member)
+            name === nothing || push!(type_names, name)
+        end
+    end
+
+    symstate = explore!(body, scopestate)
+    return hide_typegroup_references!(symstate, type_names)
+end
+
 function explore_abstract!(ex::Expr, scopestate::ScopeState)
     explore_struct!(Expr(:struct, false, ex.args[1], Expr(:block, nothing)), scopestate)
 end
@@ -820,6 +856,8 @@ function explore!(ex::Expr, scopestate::ScopeState)::SymbolsState
         return explore!(ex.args[2], scopestate)
     elseif ex.head === :struct
         return explore_struct!(ex, scopestate)
+    elseif ex.head === :typegroup
+        return explore_typegroup!(ex, scopestate)
     elseif ex.head === :primitive
         return explore_primitive!(ex, scopestate)
     elseif ex.head === :abstract
@@ -1224,7 +1262,6 @@ function compute_symbolreferences(ex::Any)::SymbolsState
 end
 
 @deprecate try_compute_symbolreferences(args...) compute_symbols_state(args...)
-
 
 
 
