@@ -29,6 +29,7 @@ let
     @inferred EE.explore_macrocall!(:(@time 1), scopestate)
     @inferred EE.explore_call!(:(f(x)), scopestate)
     @inferred EE.explore_struct!(:(struct A end), scopestate)
+    @inferred EE.explore_typegroup!(Expr(:typegroup, Expr(:block, :(struct A end))), scopestate)
     @inferred EE.explore_abstract!(:(abstract type A end), scopestate)
     @inferred EE.explore_function_macro!(:(function f(x); x; end), scopestate)
     @inferred EE.explore_try!(:(try nothing catch end), scopestate)
@@ -176,6 +177,45 @@ end
     @test testee(:(struct a; x; a(t::T) where {T} = new(t); end), [], [:a], [], [:a => ([], [], [[:new]], [])])
     @test testee(:(struct a; x; y; a(t::T) where {T} = new(t, T); end), [], [:a], [], [:a => ([], [], [[:new]], [])])
     @test testee(:(struct a; f() = a() end), [], [:a], [], [:a => ([], [], [], [])])
+
+    typegroup_expr = Expr(:typegroup, Expr(:block,
+        Expr(:struct, false, :Node, Expr(:block,
+            Expr(:(::), :edges, Expr(:curly, :Vector, :Edge)),
+        )),
+        Expr(:struct, false, :Edge, Expr(:block,
+            Expr(:(::), :from, :Node),
+            Expr(:(::), :to, :Node),
+        )),
+    ))
+    @test testee(typegroup_expr, [], [:Node, :Edge], [], [
+        :Node => ([:Vector], [], [], []),
+        :Edge => ([], [], [], []),
+    ])
+
+    parametric_typegroup_expr = Expr(:typegroup, Expr(:block,
+        :(struct Node{T} <: AbstractNode{T}; edge::Edge{T}; end),
+        :(mutable struct Edge{T}; node::Node{T}; end),
+    ))
+    @test testee(parametric_typegroup_expr, [], [:Node, :Edge], [], [
+        :Node => ([:AbstractNode], [], [], []),
+        :Edge => ([], [], [], []),
+    ])
+
+    typegroup_with_inner_constructors = Expr(:typegroup, Expr(:block,
+        Expr(:struct, false, :Node, Expr(:block,
+            Expr(:(::), :edge, :Edge),
+            :(Node(edge::Edge = default_edge) = new(edge)),
+        )),
+        Expr(:struct, false, :Edge, Expr(:block,
+            Expr(:(::), :node, :Node),
+            :(Edge(node::Node) = new(convert_node(node))),
+        )),
+    ))
+    let node = EE.compute_reactive_node(typegroup_with_inner_constructors)
+        @test isdisjoint(node.references, Set([:Node, :Edge]))
+        @test Set([:default_edge, :convert_node]) ⊆ node.references
+        @test node.definitions == Set([:Node, :Edge])
+    end
 
     @test testee(:(abstract type a <: b end), [], [:a], [], [:a => ([:b], [], [], [])])
     @test testee(:(abstract type a{T,S} end), [], [:a], [], [:a => ([], [], [], [])])
@@ -823,4 +863,3 @@ end
         funccalls=[],
     )
 end
-
