@@ -59,7 +59,9 @@ mutable struct ScopeState
     exposedglobals::Set{Symbol}
     hiddenglobals::Set{Symbol}
     definedfuncs::Set{Symbol}
+    inindex::Bool
 end
+ScopeState(inglobalscope, exposedglobals, hiddenglobals, definedfuncs) = ScopeState(inglobalscope, exposedglobals, hiddenglobals, definedfuncs, false)
 ScopeState() = ScopeState(true, Set{Symbol}(), Set{Symbol}(), Set{Symbol}())
 
 # The `union` and `union!` overloads define how two `SymbolsState`s or two `ScopeState`s are combined.
@@ -321,9 +323,7 @@ end
 function explore!(sym::Symbol, scopestate::ScopeState)::SymbolsState
     if sym ∈ scopestate.hiddenglobals
         SymbolsState()
-    elseif sym ∈ (:begin, :end)
-        # in indexing these symbols may appear. They are not globals, but syntax,
-        # hence there is no way to use these as real symbols anywhere else.
+    elseif scopestate.inindex && (sym === :begin || sym === :end)
         SymbolsState()
     else
         SymbolsState(references = Set([sym]))
@@ -409,6 +409,17 @@ function umapfoldl(@nospecialize(f::Function), itr::Vector; init=SymbolsState())
             union!(out, f(e))
         end
         return out
+    end
+end
+
+function explore_ref!(ex::Expr, scopestate::ScopeState)::SymbolsState
+    symstate = explore!(ex.args[1], scopestate)
+    old = scopestate.inindex
+    scopestate.inindex = true
+    try
+        umapfoldl(a -> explore!(a, scopestate), ex.args[2:end]; init=symstate)
+    finally
+        scopestate.inindex = old
     end
 end
 
@@ -782,6 +793,8 @@ function explore!(ex::Expr, scopestate::ScopeState)::SymbolsState
         return explore_macrocall!(ex, scopestate)
     elseif ex.head === :call
         return explore_call!(ex, scopestate)
+    elseif ex.head === :ref
+        return explore_ref!(ex, scopestate)
     elseif Meta.isexpr(ex, :parameters)
         return umapfoldl(a -> explore!(to_kw(a), scopestate), ex.args)
     elseif ex.head === :kw
