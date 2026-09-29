@@ -227,6 +227,34 @@ end
     @test testee(:(abstract type a{A,DD<:B.C{D.E{A}}} <: K.A{A} end), [], [:a], [], [:a => ([:B, :D, :K], [], [], [])])
     # @test_broken testee(:(struct a; c; a(x=y) = new(x,z); end), [], [:a], [], [:a => ([:y, :z], [], [], [])], verbose=false)
 end
+@testset "`begin` and `end` in indexing" begin
+    @test testee(:(x[begin]), [:x], [], [], [])
+    @test testee(:(x[end]), [:x], [], [], [])
+    @test testee(:(x[begin:end-1]), [:x], [], [:(:), :-], [])
+    @test testee(:(x[begin, end]), [:x], [], [], [])
+    @test testee(:(x[y[end]]), [:x, :y], [], [], [])
+    @test testee(:(x[f(end)]), [:x], [], [:f], [])
+    @test testee(:(x[end] = 1), [:x], [], [], [])
+    @test testee(:(x[end] += 1), [:x], [], [:+], [])
+    @test testee(:(x[end] = y[begin]), [:x, :y], [], [], [])
+
+    # `var"begin"` and `var"end"` are normal variables outside of indexing
+    @test testee(:(var"begin" = 1), [], [:begin], [], [])
+    @test testee(:(var"end" = 1), [], [:end], [], [])
+    @test testee(:(var"begin" + var"end"), [:begin, :end], [], [:+], [])
+    @test testee(:(var"end"[1]), [:end], [], [], [])
+    @test testee(:(f(var"end")), [:end], [], [:f], [])
+    # ...but inside indexing, `x[var"begin"]` means `x[firstindex(x)]`
+    @test testee(:(x[var"begin"]), [:x], [], [], [])
+    @test testee(:(let var"begin" = 2
+        x = [1, 2, 3]
+        x[var"begin"]
+    end), [], [], [], [])
+    @test testee(:(begin
+        var"begin" = 2
+        x[var"begin"] + var"begin"
+    end), [:x], [:begin], [:+], [])
+end
 @testset "Assignment operator & modifiers" begin
     # https://github.com/JuliaLang/julia/blob/f449765943ba414bd57c3d1a44a73e5a0bb27534/base/docs/basedocs.jl#L239-L244
     @test testee(:(a = a), [:a], [:a], [], [])
